@@ -136,43 +136,43 @@ def get_speaking_rate(audio_path:str,
     return word_count / duration if duration > 0 else 0
 
 ## Voice Quality and Phonation
-def get_harmonics_to_noise_ratio_attributes(
-                                            audio_file:parselmouth.Sound,
-                                            harmonic_type:str="preferred",
-                                            time_step:float=0.01,
-                                            min_time:float=0.0,
-                                            max_time:float=0.0,
-                                            minimum_pitch:float=0.75,
-                                            silence_threshold:float=0.0,
-                                            num_periods_per_window:float=1.0,
-                                            interpolation:str="Parabolic",
-                                            return_values:bool=False,
-                                            replacement_for_nan:float=0.0,
-                                            ):
-    """
-    Function to get Harmonics-to-Noise Ratio (HNR) attributes such as minimum HNR, maximum HNR,
-    mean HNR, and standard deviation of HNR. HNR is defined as a measure that quantifies the amount
-    of additive noise in a voice signal.
-    """
-    pass
+# def get_harmonics_to_noise_ratio_attributes(
+#                                             audio_file:parselmouth.Sound,
+#                                             harmonic_type:str="preferred",
+#                                             time_step:float=0.01,
+#                                             min_time:float=0.0,
+#                                             max_time:float=0.0,
+#                                             minimum_pitch:float=0.75,
+#                                             silence_threshold:float=0.0,
+#                                             num_periods_per_window:float=1.0,
+#                                             interpolation:str="Parabolic",
+#                                             return_values:bool=False,
+#                                             replacement_for_nan:float=0.0,
+#                                             ):
+#     """
+#     Function to get Harmonics-to-Noise Ratio (HNR) attributes such as minimum HNR, maximum HNR,
+#     mean HNR, and standard deviation of HNR. HNR is defined as a measure that quantifies the amount
+#     of additive noise in a voice signal.
+#     """
+#     pass
 
-def get_glottal_to_noise_ratio_attributes(audio_file:parselmouth.Sound,
-                                            horizontal_minimum:float=0.0,
-                                            horizontal_maximum:float=0.0,
-                                            vertical_minimum:float=0.0,
-                                            vertical_maximum:float=0.0,
-                                            minimum_frequency:float=500.0,
-                                            maximum_frequency:float=4500.0,
-                                            bandwidth:float=1000.0,
-                                            step:int=50,
-                                            ):
-    """
-    Function to get Glottal-to-Noise Ratio (GNE) attributes such as minimum GNE, maximum GNE,
-    mean GNE, standard deviation of GNE, and sum of GNE. GNE is a measure that indicates whether a
-    given voice signal originates from vibrations of the vocal folds or from turbulent noise
-    generated in the vocal tract and is thus related to (but not a direct measure of) breathiness.
-    """
-    pass
+# def get_glottal_to_noise_ratio_attributes(audio_file:parselmouth.Sound,
+#                                             horizontal_minimum:float=0.0,
+#                                             horizontal_maximum:float=0.0,
+#                                             vertical_minimum:float=0.0,
+#                                             vertical_maximum:float=0.0,
+#                                             minimum_frequency:float=500.0,
+#                                             maximum_frequency:float=4500.0,
+#                                             bandwidth:float=1000.0,
+#                                             step:int=50,
+#                                             ):
+#     """
+#     Function to get Glottal-to-Noise Ratio (GNE) attributes such as minimum GNE, maximum GNE,
+#     mean GNE, standard deviation of GNE, and sum of GNE. GNE is a measure that indicates whether a
+#     given voice signal originates from vibrations of the vocal folds or from turbulent noise
+#     generated in the vocal tract and is thus related to (but not a direct measure of) breathiness.
+#     """
+#     pass
 
 def get_local_jitter(audio_file:parselmouth.Sound,
                         pitch_floor:float=75.0,
@@ -229,7 +229,15 @@ def get_spectrum_attributes(audio_file:parselmouth.Sound,
     """
     Function to get spectrum-based attributes such as center of gravity, skewness, kurtosis, etc.
     """
-    pass
+    spectrum = call(audio_file, "To Spectrum", "yes")
+    attributes = dict()
+
+    attributes["band_energy"] = call(spectrum, "Get band energy", band_floor, band_ceiling)
+    attributes["band_density"] = call(spectrum, "Get band density", band_floor, band_ceiling)
+    attributes["band_energy_difference"] = call(spectrum, "Get band energy difference", 
+                                                low_band_floor, low_band_ceiling,
+                                                high_band_floor, high_band_ceiling)
+    
 
 def get_formant_attributes(audio_file:parselmouth.Sound,
                             time_step:float=0.0,
@@ -263,26 +271,26 @@ def get_mfcc(audio_file:parselmouth.Sound,
     """
     pass
 
-def get_lfcc(audio_file:parselmouth.Sound,
-                lpc_method:str="autocorrelation",
-                prediction:int=16,
-                window_length:float=0.025,
-                time_step:float=0.005,
-                pre_emphasis_frequency:float=50.0,
-                num_coefficients:int=12,
-            ):
-    """
-    Function calculate LFCC (Linear Frequency Cepstral Coefficients).   
-    """
-    pass
+# def get_lfcc(audio_file:parselmouth.Sound,
+#                 lpc_method:str="autocorrelation",
+#                 prediction:int=16,
+#                 window_length:float=0.025,
+#                 time_step:float=0.005,
+#                 pre_emphasis_frequency:float=50.0,
+#                 num_coefficients:int=12,
+#             ):
+#     """
+#     Function calculate LFCC (Linear Frequency Cepstral Coefficients).   
+#     """
+#     pass
 
-def get_delta(matrix:np.ndarray,
-                step_size:int=2,
-                ):
-    """
-    Function to get a delta matrix on a given matrix, adapted from:
-    http://practicalcryptography.com/miscellaneous/machine-learning/guide-mel-frequency-cepstral-coefficients-mfccs/
-    If get the delta of a MFCC matrix -> get the velocity of MFCC.
-    If get the delta on this resulting velocity -> get the acceleration of MFCCs.
-    """
-    pass
+# def get_delta(matrix:np.ndarray,
+#                 step_size:int=2,
+#                 ):
+#     """
+#     Function to get a delta matrix on a given matrix, adapted from:
+#     http://practicalcryptography.com/miscellaneous/machine-learning/guide-mel-frequency-cepstral-coefficients-mfccs/
+#     If get the delta of a MFCC matrix -> get the velocity of MFCC.
+#     If get the delta on this resulting velocity -> get the acceleration of MFCCs.
+#     """
+#     pass

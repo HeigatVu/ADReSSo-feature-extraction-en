@@ -7,8 +7,10 @@ def process_feature(audio_path:str, csv_segment_path:str, transcript_path:str, p
     processed_linguistic_feature = utils.process_linguistic_features(transcript_path, patient_id, lang=lang)
     processed_acoustic_feature = utils.process_acoustic_features(audio_path, csv_segment_path)
 
-    print(f"linguistic feature: \n{processed_linguistic_feature}")
-    print(f"acoustic feature: \n{processed_acoustic_feature}")
+    # print(f"linguistic feature: \n{processed_linguistic_feature}")
+    # print(f"acoustic feature: \n{processed_acoustic_feature}")
+
+    
 
 
 
