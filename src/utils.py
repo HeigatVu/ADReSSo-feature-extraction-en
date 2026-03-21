@@ -10,8 +10,10 @@ from src import acousticFeature
 from src import linguisticFeature
 
 import parselmouth
-
-# import warnings
+import librosa
+import numpy as np
+import soundfile as sf
+from scipy.stats import skew, kurtosis
 
 def get_audio_files(audio_path:str) -> dict[str, List[str]]:
     """Load all audio files from ADReSSo structure
@@ -68,8 +70,6 @@ def process_acoustic_features_praat(audio_path:str, diarization_segment_path:str
             shimmer_attrs = acousticFeature.get_local_shimmer(segment_sound)
             spectrum_attrs, _ = acousticFeature.get_spectrum_attributes(segment_sound)
             formant_attrs, _ = acousticFeature.get_formant_attributes(segment_sound)
-            speaking_rate = acousticFeature.get_speaking_rate(audio_path, transcript)
-
 
             # Combine to dict
             segment_features = {
@@ -80,7 +80,6 @@ def process_acoustic_features_praat(audio_path:str, diarization_segment_path:str
                 **pitch_attrs,
                 "jitter_local": jitter_attrs,
                 "shimmer_local": shimmer_attrs,
-                "speaking_rate": speaking_rate,
                 **spectrum_attrs,
                 **formant_attrs,
             }
@@ -93,27 +92,39 @@ def process_acoustic_features_praat(audio_path:str, diarization_segment_path:str
     # Convert to DataFrame
     df_segment_features = pd.DataFrame(segment_features_list)
     if df_segment_features.empty:
-        patient_profile = pd.Series(dtype=float)
+        statistics_features = pd.Series(dtype=float)
     else:
-        from scipy.stats import skew, kurtosis
-
         numeric_df = df_segment_features.drop(
             columns=["segment_id", "start_time", "end_time"], errors="ignore"
         )
 
+        _VAR_THRESHOLD = 1e-10
+
         agg_mean = numeric_df.agg("mean")
         agg_std  = numeric_df.agg("std")
-        agg_skew = numeric_df.agg(skew)
-        agg_kurt = numeric_df.agg(kurtosis)
+        agg_skew = numeric_df.agg(lambda x: skew(x, nan_policy="omit") if x.var() >= _VAR_THRESHOLD else 0.0)
+        agg_kurt = numeric_df.agg(lambda x: kurtosis(x, nan_policy="omit") if x.var() >= _VAR_THRESHOLD else 0.0)
 
-        patient_profile = pd.concat({
+        statistics_features = pd.concat({
             "mean": agg_mean,
             "std":  agg_std,
             "skew": agg_skew,
             "kurt": agg_kurt,
         }).swaplevel().sort_index()
 
-    return df_segment_features, patient_profile
+    return df_segment_features, statistics_features
+
+
+# Extract openSMILE features
+def concatenate_par_segments(audio_path, par_segments, sr=16000):
+    full_audio, _ = librosa.load(audio_path, sr=sr)
+    chunks = []
+    for _, row in par_segments.iterrows():
+        start = int(row["begin"] / 1000.0 * sr)
+        end   = int(row["end"]   / 1000.0 * sr)
+        if start < end:
+            chunks.append(full_audio[start:end])
+    return np.concatenate(chunks) if chunks else np.array([])
 
 def process_acoustic_features_opensmile(audio_path:str, diarization_segment_path:str, 
                                         transcript_segment_path:str, use_compare: bool = False) -> tuple[dict, dict]:
@@ -131,47 +142,13 @@ def process_acoustic_features_opensmile(audio_path:str, diarization_segment_path
     df_segment = pd.read_csv(diarization_segment_path)
     par_segments = df_segment[df_segment["speaker"] == "PAR"].copy()
 
-    segment_features_list = []
-
-    # Iterate over each PAR segment
-    for index, row in par_segments.iterrows():
-        start_time = row["begin"]/1000.0
-        end_time = row["end"]/1000.0
-
-        if start_time >= end_time:
-            continue
-        
-        try:
-            features_dict = acousticFeature.get_opensmile_features(
-                audio_path=audio_path,
-                start_time=start_time,
-                end_time=end_time,
-                use_compare=use_compare,
-            )
-            segment_features = {
-                "segment_id": index,
-                "start_time": start_time,
-                "end_time": end_time,
-                **features_dict,
-            }
-            segment_features_list.append(segment_features)
-        except Exception as e:
-            print(f"Error extracting segment {index}: {e}")
-            continue
+    concatenated_audio = concatenate_par_segments(audio_path, par_segments)
+    opensmile_features = acousticFeature.get_opensmile_features(concatenated_audio, sr=16000, use_compare=use_compare)
 
     # Convert to DataFrame
-    df_segment_features = pd.DataFrame(segment_features_list)
-    if df_segment_features.empty:
-        patient_profile = pd.Series(dtype=float)
-    else:
-        patient_profile = (
-            df_segment_features
-            .drop(columns=["segment_id", "start_time", "end_time"], errors="ignore")
-            .agg(["mean", "std"])
-            .unstack()
-        )
+    df_features = pd.Series(opensmile_features)
 
-    return df_segment_features, patient_profile
+    return df_features
 
 
 def process_linguistic_features(whisper_transcript_path:str, patient_id:str, lang:str="en") -> dict:
@@ -238,10 +215,10 @@ def process_feature(audio_path:str, csv_segment_path:str,
     else:
         processed_linguistic_feature = {}
     if use_egemap02 or use_compare:
-        _, patient_profile_series = process_acoustic_features_opensmile(
+        df_opensmile_features = process_acoustic_features_opensmile(
             audio_path, csv_segment_path, transcript_path, use_compare=use_compare)
     else:
-        _, patient_profile_series = process_acoustic_features_praat(
+        df_praat_features = process_acoustic_features_praat(
             audio_path, csv_segment_path, transcript_path)
     
     # patient_id and diagnosis always appear as first columns in both DataFrames
@@ -263,8 +240,12 @@ def process_feature(audio_path:str, csv_segment_path:str,
 
     # Flatten acoustic features
     flat_acoustic = {**meta}
-    for (feat, stat), val in patient_profile_series.items():
-        flat_acoustic[f"{feat}_{stat}"] = val
+    if (use_egemap02 or use_compare):
+        for feat, val in df_opensmile_features.items():
+            flat_acoustic[feat] = val
+    else:
+        for (feat, stat), val in df_praat_features.items():
+            flat_acoustic[f"{feat}_{stat}"] = val
 
     return pd.DataFrame([flat_ling]), pd.DataFrame([flat_acoustic])
 
@@ -286,6 +267,7 @@ def feature_extraction(output_dir: str, whisper_transcription_path:str, csv_segm
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     transcript_files = glob.glob(whisper_transcription_path + "/*.csv")[0]
+
     # Sample information and data
     df_sample_info = pd.read_csv(transcript_files)
     patient_id = df_sample_info["files_id"]
@@ -303,10 +285,6 @@ def feature_extraction(output_dir: str, whisper_transcription_path:str, csv_segm
         print("Extracting acoustic features using ComParE...")
     else:
         print("Extracting acoustic features using Praat...")
-        
-
-    # warnings.filterwarnings("ignore", category=RuntimeWarning)
-    # warnings.filterwarnings("ignore", category=FutureWarning)
 
     for i in tqdm(range(len(df_sample_info))):
         patient = patient_id[i]
@@ -332,8 +310,6 @@ def feature_extraction(output_dir: str, whisper_transcription_path:str, csv_segm
         if linguistic:
             df_ling_list.append(df_ling_row)
         df_acoustic_list.append(df_acoustic_row)
-
-        break
 
     if linguistic and df_ling_list:
         df_linguistic = pd.concat(df_ling_list, ignore_index=True)

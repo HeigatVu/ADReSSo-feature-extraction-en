@@ -356,7 +356,7 @@ def get_formant_attributes(audio_file:parselmouth.Sound,
             attributes["vtl_delta_f"] = 35000 / (2 * attributes["delta_f"])
 
 
-        return attributes, None
+    return attributes, None
 
 ## Cepstral (Timbral)
 def get_mfcc(audio_file:parselmouth.Sound,
@@ -408,11 +408,8 @@ def get_mfcc(audio_file:parselmouth.Sound,
 
 
 # Feature openSMILE
-import soundfile as sf
-import tempfile
-
-def get_opensmile_features(audio_path:str, start_time:float, 
-                            end_time:float, use_compare:bool=False) -> dict:
+def get_opensmile_features(signal:np.ndarray, sr:int=16000, 
+                            use_compare:bool=False) -> dict:
     """
     Function to get opensmile feature (default: eGeMAPSv02).
     """
@@ -427,6 +424,5 @@ def get_opensmile_features(audio_path:str, start_time:float,
             feature_level=opensmile.FeatureLevel.Functionals,
         )
 
-    sig, sampl_rate = librosa.load(audio_path, sr=None, offset=start_time, duration=end_time - start_time)
-    feature_df = smile.process_signal(sig, sampl_rate)
+    feature_df = smile.process_signal(signal, sr)
     return feature_df.iloc[0].to_dict()
