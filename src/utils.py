@@ -93,13 +93,24 @@ def process_acoustic_features_praat(audio_path:str, diarization_segment_path:str
     if df_segment_features.empty:
         patient_profile = pd.Series(dtype=float)
     else:
-        patient_profile = (
-            df_segment_features
-            .drop(columns=["segment_id", "start_time", "end_time"], errors="ignore")
-            .agg(["mean", "std"])
-            .unstack()
+        from scipy.stats import skew, kurtosis
+
+        numeric_df = df_segment_features.drop(
+            columns=["segment_id", "start_time", "end_time"], errors="ignore"
         )
- 
+
+        agg_mean = numeric_df.agg("mean")
+        agg_std  = numeric_df.agg("std")
+        agg_skew = numeric_df.agg(skew)
+        agg_kurt = numeric_df.agg(kurtosis)
+
+        patient_profile = pd.concat({
+            "mean": agg_mean,
+            "std":  agg_std,
+            "skew": agg_skew,
+            "kurt": agg_kurt,
+        }).swaplevel().sort_index()
+
     return df_segment_features, patient_profile
 
 def process_acoustic_features_opensmile(audio_path:str, diarization_segment_path:str, 
@@ -108,18 +119,13 @@ def process_acoustic_features_opensmile(audio_path:str, diarization_segment_path
     Extracts and aggregates acoustic features strictly from PAR segments in csv using openSMILE
     """
     
-    # Load audio file
-    full_sound = parselmouth.Sound(audio_path)
-
-    # Check matching patient id
     df_original_transcript = pd.read_csv(transcript_segment_path)
     if "files_id" in df_original_transcript.columns:
         patient_id = Path(audio_path).stem
-        df_transcript = df_original_transcript[df_original_transcript["files_id"] == patient_id]
+        df_original_transcript = df_original_transcript[
+            df_original_transcript["files_id"] == patient_id
+        ]
 
-    transcript = " ".join(df_transcript["transcript"].dropna().astype(str))
-
-    # Load the diarization csv
     df_segment = pd.read_csv(diarization_segment_path)
     par_segments = df_segment[df_segment["speaker"] == "PAR"].copy()
 
@@ -221,21 +227,24 @@ def process_linguistic_features(whisper_transcript_path:str, patient_id:str, lan
 
 
 def process_feature(audio_path:str, csv_segment_path:str, 
-                    transcript_path:str, patient_id:str, lang:str="en",
+                    transcript_path:str, patient_id:str, diagnosis:str, lang:str="en",
                     use_egemap02:bool=False, use_compare:bool=False, linguistic:bool=True) -> pd.DataFrame:
     """ Process all features
     """
     processed_linguistic_feature = process_linguistic_features(transcript_path, patient_id, lang=lang)
-    if use_egemap02:
+    if use_egemap02 or use_compare:
         _, patient_profile_series = process_acoustic_features_opensmile(
             audio_path, csv_segment_path, transcript_path, use_compare=use_compare)
     else:
         _, patient_profile_series = process_acoustic_features_praat(
             audio_path, csv_segment_path, transcript_path)
     
+    # patient_id and diagnosis always appear as first columns in both DataFrames
+    meta = {"patient_id": patient_id, "diagnosis": diagnosis}
+
     # Flatten linguistic features
     if linguistic:
-        flat_ling = {}
+        flat_ling = {**meta}
         for k, v in processed_linguistic_feature.items():
             if isinstance(v, dict):
                 for sub_k, sub_v in v.items():
@@ -246,17 +255,17 @@ def process_feature(audio_path:str, csv_segment_path:str,
         flat_ling = {}
 
     # Flatten acoustic features
-    flat_acoustic = {}
+    flat_acoustic = {**meta}
     for (feat, stat), val in patient_profile_series.items():
         flat_acoustic[f"{feat}_{stat}"] = val
 
     return pd.DataFrame([flat_ling]), pd.DataFrame([flat_acoustic])
 
 def feature_extraction(output_dir: str, whisper_transcription_path:str, csv_segment_path:str,
-                        use_egemap02:bool=False, use_compare:bool=False, linguistic:bool=True) -> str:
+                        use_egemap02:bool=False, use_compare:bool=False, linguistic:bool=False) -> str:
     
     # Extract acoustic feature
-    if not use_egemap02:
+    if use_egemap02:
         output_acoustic_file = Path(output_dir) / "adresso_features_praat.csv"
     elif use_compare:
         output_acoustic_file = Path(output_dir) / "adresso_features_compare.csv"
@@ -287,7 +296,6 @@ def feature_extraction(output_dir: str, whisper_transcription_path:str, csv_segm
         print("Extracting acoustic features using ComParE...")
     else:
         print("Extracting acoustic features using Praat...")
-    
     for i in tqdm(range(len(df_sample_info))):
         patient = patient_id[i]
         diag = diagnosis_list[i]
@@ -299,7 +307,7 @@ def feature_extraction(output_dir: str, whisper_transcription_path:str, csv_segm
             if "PAR" not in df_segment["speaker"].values:
                 continue
         df_ling_row, df_acoustic_row = process_feature(
-            audio_path[i], segment_file, transcript_files, patient,
+            audio_path[i], segment_file, transcript_files, patient, diag,
             lang="en",
             use_egemap02=use_egemap02,
             use_compare=use_compare,

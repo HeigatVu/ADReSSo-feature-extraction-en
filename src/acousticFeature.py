@@ -409,7 +409,10 @@ def get_mfcc(audio_file:parselmouth.Sound,
 
 
 # Feature openSMILE
-def get_opensmile_feature(audio_path:str, start_time:float, end_time:float, feature_compare2016:bool=False):
+def get_opensmile_feature(audio_path:str, start_time:float, end_time:float, feature_compare2016:bool=False) -> dict:
+    """
+    Function to get opensmile feature (default: eGeMAPSv02).
+    """
     if feature_compare2016:
         smile = opensmile.Smile(
             feature_set=opensmile.FeatureSet.ComParE_2016,   # 6373 features
