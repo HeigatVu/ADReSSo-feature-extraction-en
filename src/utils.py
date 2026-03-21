@@ -222,7 +222,7 @@ def process_linguistic_features(whisper_transcript_path:str, patient_id:str, lan
 
 def process_feature(audio_path:str, csv_segment_path:str, 
                     transcript_path:str, patient_id:str, lang:str="en",
-                    use_egemap02:bool=False, use_compare:bool=False) -> pd.DataFrame:
+                    use_egemap02:bool=False, use_compare:bool=False, linguistic:bool=True) -> pd.DataFrame:
     """ Process all features
     """
     processed_linguistic_feature = process_linguistic_features(transcript_path, patient_id, lang=lang)
@@ -234,19 +234,22 @@ def process_feature(audio_path:str, csv_segment_path:str,
             audio_path, csv_segment_path, transcript_path)
     
     # Flatten linguistic features
-    flat_ling = {}
-    for k, v in processed_linguistic_feature.items():
-        if isinstance(v, dict):
-            for sub_k, sub_v in v.items():
-                flat_ling[f"{k}_{sub_k}"] = sub_v
-        else:
-            flat_ling[k] = v
+    if linguistic:
+        flat_ling = {}
+        for k, v in processed_linguistic_feature.items():
+            if isinstance(v, dict):
+                for sub_k, sub_v in v.items():
+                    flat_ling[f"{k}_{sub_k}"] = sub_v
+            else:
+                flat_ling[k] = v
+    else:
+        flat_ling = {}
 
     # Flatten acoustic features
     flat_acoustic = {}
     for (feat, stat), val in patient_profile_series.items():
         flat_acoustic[f"{feat}_{stat}"] = val
- 
+
     return pd.DataFrame([flat_ling]), pd.DataFrame([flat_acoustic])
 
 def feature_extraction(output_dir: str, whisper_transcription_path:str, csv_segment_path:str,
@@ -276,6 +279,15 @@ def feature_extraction(output_dir: str, whisper_transcription_path:str, csv_segm
     df_linguistic = pd.DataFrame()
     df_acoustic = pd.DataFrame()
 
+    if linguistic:
+        print("Extracting linguistic features...")
+    if use_egemap02:
+        print("Extracting acoustic features using eGeMAPS...")
+    elif use_compare:
+        print("Extracting acoustic features using ComParE...")
+    else:
+        print("Extracting acoustic features using Praat...")
+    
     for i in tqdm(range(len(df_sample_info))):
         patient = patient_id[i]
         diag = diagnosis_list[i]
@@ -286,15 +298,16 @@ def feature_extraction(output_dir: str, whisper_transcription_path:str, csv_segm
             df_segment = pd.read_csv(segment_file)
             if "PAR" not in df_segment["speaker"].values:
                 continue
-            
         df_ling_row, df_acoustic_row = process_feature(
             audio_path[i], segment_file, transcript_files, patient,
             lang="en",
             use_egemap02=use_egemap02,
             use_compare=use_compare,
+            linguistic=linguistic
         )
 
-        df_linguistic = pd.concat([df_linguistic, df_ling_row], ignore_index=True)
+        if linguistic:
+            df_linguistic = pd.concat([df_linguistic, df_ling_row], ignore_index=True)
         df_acoustic = pd.concat([df_acoustic, df_acoustic_row], ignore_index=True)
 
     if linguistic:
