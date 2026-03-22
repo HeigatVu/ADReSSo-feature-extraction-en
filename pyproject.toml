@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "dotenv>=0.9.9",
     "en-core-web-sm",
     "ideadensity>=0.5.1",
     "librosa>=0.11.0",
@@ -13,6 +14,7 @@ dependencies = [
     "pandas>=3.0.1",
     "praat-parselmouth>=0.4.7",
     "pyqt6<6.9",
+    "pyyaml>=6.0.3",
     "scipy>=1.17.1",
     "setuptools<71.0.0",
     "soundfile>=0.13.1",

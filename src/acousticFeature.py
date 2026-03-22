@@ -414,12 +414,12 @@ def get_opensmile_features(signal:np.ndarray, sr:int=16000,
     """
     if use_compare:
         smile = opensmile.Smile(
-            feature_set=opensmile.FeatureSet.ComParE_2016,   # 6373 features
+            feature_set=opensmile.FeatureSet.ComParE_2016,   # 6375 features
             feature_level=opensmile.FeatureLevel.Functionals,
         )
     else:
         smile = opensmile.Smile(
-            feature_set=opensmile.FeatureSet.eGeMAPSv02,     # 88 features
+            feature_set=opensmile.FeatureSet.eGeMAPSv02,     # 90 features
             feature_level=opensmile.FeatureLevel.Functionals,
         )
 

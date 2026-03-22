@@ -5,6 +5,12 @@ from pathlib import Path
 import pandas as pd
 from tqdm.auto import tqdm
 import glob
+import torch
+from transformers import pipeline
+
+from huggingface_hub import login
+from dotenv import load_dotenv
+load_dotenv()
 
 from src import acousticFeature
 from src import linguisticFeature
@@ -14,24 +20,174 @@ import librosa
 import numpy as np
 import soundfile as sf
 from scipy.stats import skew, kurtosis
+from sklearn.model_selection import train_test_split
 
-def get_audio_files(audio_path:str) -> dict[str, List[str]]:
+def get_files(audio_path:str, 
+                    data_type:str="train") -> dict[str, List[str]]:
     """Load all audio files from ADReSSo structure
     """
-
-    audio_files = {
-        "ad": sorted((Path(audio_path) / "ad").glob('*.wav')),
-        "cn": sorted((Path(audio_path) / "cn").glob('*.wav')),
-    }
-
-    print(f"Found {len(audio_files['ad'])} AD files")
-    print(f"Found {len(audio_files['cn'])} CN files")
+    if data_type == "train":
+        audio_files = {
+            "ad": sorted((Path(audio_path) / "ad").glob('*.*')),
+            "cn": sorted((Path(audio_path) / "cn").glob('*.*')),
+        }
+    elif data_type == "test":
+        audio_files = {
+            "audio": sorted((Path(audio_path)).glob('*.*')),
+        }
+    else:
+        raise ValueError("Invalid data type. Must be 'train' or 'test'.")
     
     return audio_files
 
 
-# Runing on each segment and calculate statistics
-def process_acoustic_features_praat(audio_path:str, diarization_segment_path:str, transcript_segment_path:str) -> tuple[pd.DataFrame, pd.Series]:
+# Transcript
+def transcribe_audio_files(audio_files:Dict[str, List[Path]], 
+                            mmse_diagnosis_path:str,
+                            csv_segment_path:str,
+                            data_type:str="train",
+                            multipleGPU: bool = False,
+                            model_name:str = "openai/whisper-large-v3", 
+                            batch_size:int = 8,
+                            device:str = "cuda" if torch.cuda.is_available() else "cpu",
+                            output_path:str = None,
+                            hf_token:str = None) -> pd.DataFrame:
+    """ Transcribe audio files without diarization
+    """
+    token = hf_token or os.environ.get("HF_TOKEN")
+    if token:
+        login(token=token)
+
+    torch_type=torch.float16 if torch.cuda.is_available() else torch.float32
+    if not multipleGPU:
+        transcriber = pipeline(
+            "automatic-speech-recognition",
+            model=model_name,
+            device=device,
+            batch_size=batch_size,
+            torch_dtype=torch_type,
+            token=token,
+            model_kwargs={
+                "attn_implementation": "sdpa"  # Scaled dot-product attention (faster)
+            }
+        )
+
+        transcriber.model.config.forced_decoder_ids = transcriber.tokenizer.get_decoder_prompt_ids(
+            language="english",
+            task="transcribe"
+        )
+
+    else:
+        transcriber = pipeline(
+            task="automatic-speech-recognition",
+            batch_size=batch_size,
+            model=model_name,
+            device=device,
+            torch_dtype=torch_type,
+            device_map="auto", # Using this to multiGPU
+            token=token,
+            generate_kwargs={
+                "language": "english"
+            },
+            model_kwargs={
+                "attn_implementation": "sdpa"  # Scaled dot-product attention (faster)
+            }
+        )
+
+    results = []
+    df_mmse = pd.read_csv(mmse_diagnosis_path)
+    df_mmse.columns = [c.strip().strip('"').strip() for c in df_mmse.columns]
+
+    if data_type == "train":
+        for diagnosis, files in audio_files.items():
+            for audio_file in tqdm(files, desc=f"{diagnosis.upper()}"):
+                output = transcriber(
+                    str(audio_file),
+                    return_timestamps=True,
+                    generate_kwargs={
+                        "task": "transcribe",
+                        "language": "en",
+                        "return_timestamps": True,
+                        "num_beams": 5,
+                    }
+                )
+
+                # Handle different output formats
+                if isinstance(output, dict):
+                    if "text" in output:
+                        transcript = output["text"].strip()
+                    elif "chunks" in output:
+                        transcript = " ".join([chunk["text"] for chunk in output["chunks"]]).strip()
+                    else:
+                        transcript = ""
+                else:
+                    transcript = str(output).strip()
+
+                patient_row = df_mmse[df_mmse["adressfname"] == audio_file.stem]
+                segment_path = csv_segment_path + f"/{diagnosis}/{audio_file.stem}.csv"
+
+                results.append({
+                    "files_id": audio_file.stem,
+                    "mmse_score": patient_row["mmse"].values[0],
+                    "audio_path": str(audio_file),
+                    "diagnosis": diagnosis,
+                    "segment_path": str(segment_path),
+                    "transcript": transcript,
+
+                    })
+        output_file = Path(output_path) / "adresso_transcripts_train.csv"
+        pd.DataFrame(results).to_csv(output_file, index=False)
+
+    if data_type == "test":
+        for audio_file in tqdm(audio_files.get("audio", []), desc="TEST"):
+            output = transcriber(
+                str(audio_file),
+                return_timestamps=True,
+                generate_kwargs={
+                    "task": "transcribe",
+                    "language": "en",
+                    "return_timestamps": True,
+                    "num_beams": 5,
+                }
+            )
+
+            # Handle different output formats
+            if isinstance(output, dict):
+                if "text" in output:
+                    transcript = output["text"].strip()
+                elif "chunks" in output:
+                    transcript = " ".join([chunk["text"] for chunk in output["chunks"]]).strip()
+                else:
+                    transcript = ""
+            else:
+                transcript = str(output).strip()
+
+            patient_row = df_mmse[df_mmse["adressfname"] == audio_file.stem]
+            segment_path = csv_segment_path + f"/{audio_file.stem}.csv"
+            if patient_row["dx"].values[0] == "Control":
+                diagnosis = "cn"
+            if patient_row["dx"].values[0] == "ProbableAD":
+                diagnosis = "ad"
+
+            results.append({
+                "files_id": audio_file.stem,
+                "mmse_score": patient_row["mmse"].values[0],
+                "audio_path": str(audio_file),
+                "diagnosis": diagnosis,
+                "segment_path": str(segment_path),
+                "transcript": transcript,
+                })
+        output_file = Path(output_path) / "adresso_transcripts_test.csv"
+        pd.DataFrame(results).to_csv(output_file, index=False)
+
+    return f"Done {data_type}"
+
+
+######################################### TRADITIONAL APROACH #########################################
+# Runing on each segment and calculate statistics with extracting PRAAT features
+def process_acoustic_features_praat(audio_path:str, 
+                                    diarization_segment_path:str, 
+                                    transcript_segment_path:str) -> tuple[pd.DataFrame, pd.Series]:
     """
     Extracts and aggregates acoustic features strictly from PAR segments in csv using PRAAT-parselmouth
     """
@@ -116,7 +272,9 @@ def process_acoustic_features_praat(audio_path:str, diarization_segment_path:str
 
 
 # Extract openSMILE features
-def concatenate_par_segments(audio_path, par_segments, sr=16000):
+def concatenate_par_segments(audio_path, 
+                                par_segments, 
+                                sr=16000):
     full_audio, _ = librosa.load(audio_path, sr=sr)
     chunks = []
     for _, row in par_segments.iterrows():
@@ -126,8 +284,10 @@ def concatenate_par_segments(audio_path, par_segments, sr=16000):
             chunks.append(full_audio[start:end])
     return np.concatenate(chunks) if chunks else np.array([])
 
-def process_acoustic_features_opensmile(audio_path:str, diarization_segment_path:str, 
-                                        transcript_segment_path:str, use_compare: bool = False) -> tuple[dict, dict]:
+def process_acoustic_features_opensmile(audio_path:str, 
+                                        diarization_segment_path:str, 
+                                        transcript_segment_path:str, 
+                                        use_compare: bool = False) -> tuple[dict, dict]:
     """
     Extracts and aggregates acoustic features strictly from PAR segments in csv using openSMILE
     """
@@ -151,7 +311,10 @@ def process_acoustic_features_opensmile(audio_path:str, diarization_segment_path
     return df_features
 
 
-def process_linguistic_features(whisper_transcript_path:str, patient_id:str, lang:str="en") -> dict:
+# Extract linguistic features
+def process_linguistic_features(whisper_transcript_path:str, 
+                                patient_id:str, 
+                                lang:str="en") -> dict:
     """
     Extract linguistic features from transcript csv
     """
@@ -205,9 +368,16 @@ def process_linguistic_features(whisper_transcript_path:str, patient_id:str, lan
     return result
 
 
-def process_feature(audio_path:str, csv_segment_path:str, 
-                    transcript_path:str, patient_id:str, diagnosis:str, lang:str="en",
-                    use_egemap02:bool=False, use_compare:bool=False, linguistic:bool=True) -> pd.DataFrame:
+# Process all features
+def process_feature(audio_path:str, 
+                    csv_segment_path:str, 
+                    transcript_path:str, 
+                    patient_id:str, 
+                    diagnosis:str, 
+                    lang:str="en",
+                    use_egemap02:bool=False, 
+                    use_compare:bool=False, 
+                    linguistic:bool=True) -> tuple[pd.DataFrame, pd.Series]:
     """ Process all features
     """
     if linguistic:
@@ -249,8 +419,15 @@ def process_feature(audio_path:str, csv_segment_path:str,
 
     return pd.DataFrame([flat_ling]), pd.DataFrame([flat_acoustic])
 
-def feature_extraction(output_dir: str, whisper_transcription_path:str, csv_segment_path:str,
-                        use_egemap02:bool=False, use_compare:bool=False, linguistic:bool=False) -> str:
+
+# Extract all features
+def feature_extraction(output_dir: str, 
+                        whisper_transcription_path:str, 
+                        use_egemap02:bool=False, 
+                        use_compare:bool=False, 
+                        linguistic:bool=False, 
+                        data_type:str="train",
+                        save_csv:bool=True) -> str:
     
     # Extract acoustic feature
     if use_egemap02:
@@ -263,16 +440,17 @@ def feature_extraction(output_dir: str, whisper_transcription_path:str, csv_segm
     
     # Linguistic features are independent of acoustic method
     if linguistic:
-        output_linguistic_file = Path(output_dir) / "adresso_linguistic.csv"
+        output_linguistic_file = Path(output_dir) / "adresso_features_linguistic.csv"
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-    transcript_files = glob.glob(whisper_transcription_path + "/*.csv")[0]
+    transcript_files = glob.glob(whisper_transcription_path + f"/adresso_transcripts_{data_type}.csv")
 
     # Sample information and data
     df_sample_info = pd.read_csv(transcript_files)
     patient_id = df_sample_info["files_id"]
     audio_path = df_sample_info["audio_path"]
     diagnosis_list = df_sample_info["diagnosis"]
+    segment_path_list = df_sample_info["segment_path"]
     
     df_ling_list = []
     df_acoustic_list = []
@@ -289,7 +467,7 @@ def feature_extraction(output_dir: str, whisper_transcription_path:str, csv_segm
     for i in tqdm(range(len(df_sample_info))):
         patient = patient_id[i]
         diag = diagnosis_list[i]
-        segment_file = f"{csv_segment_path}/{diag}/{patient}.csv"
+        segment_file = segment_path_list[i]
         
         # Eliminate the samples without interviewee saying
         if not os.path.exists(segment_file):
@@ -311,12 +489,27 @@ def feature_extraction(output_dir: str, whisper_transcription_path:str, csv_segm
             df_ling_list.append(df_ling_row)
         df_acoustic_list.append(df_acoustic_row)
 
-    if linguistic and df_ling_list:
-        df_linguistic = pd.concat(df_ling_list, ignore_index=True)
-        df_linguistic.to_csv(output_linguistic_file, index=False)
-        
-    if df_acoustic_list:
-        df_acoustic = pd.concat(df_acoustic_list, ignore_index=True)
-        df_acoustic.to_csv(output_acoustic_file, index=False)
-        
-    print("Feature extraction completed")
+    if save_csv:
+        if linguistic and df_ling_list:
+            df_linguistic = pd.concat(df_ling_list, ignore_index=True)
+            df_linguistic.to_csv(output_linguistic_file, index=False)
+            
+        if df_acoustic_list:
+            df_acoustic = pd.concat(df_acoustic_list, ignore_index=True)
+            df_acoustic.to_csv(output_acoustic_file, index=False)
+
+    return df_linguistic, df_acoustic
+
+
+# Split data into train, validation, and test sets
+def train_val_test_split(df_train:pd.DataFrame, 
+                        test_size:float=0.2, 
+                        random_state:int=42) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """ Split data into train and validation datasets
+    """
+    
+    df_x_train, df_x_val, df_y_train, df_y_val = train_test_split(df_train, test_size=test_size, 
+                                                                random_state=random_state)
+
+    return df_x_train, df_x_val, df_y_train, df_y_val
+
