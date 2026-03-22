@@ -30,15 +30,3 @@ def get_files(audio_path:str,
     
     return audio_files
 
-# # Split data into train, validation, and test sets
-# def train_val_test_split(df_train:pd.DataFrame, 
-#                         test_size:float=0.2, 
-#                         random_state:int=42) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-#     """ Split data into train and validation datasets
-#     """
-    
-#     df_x_train, df_x_val, df_y_train, df_y_val = train_test_split(df_train, test_size=test_size, 
-#                                                                 random_state=random_state)
-
-#     return df_x_train, df_x_val, df_y_train, df_y_val
-

@@ -1,12 +1,12 @@
 from src import utils
 from src import feature_extraction_pipeline
-from src import transcript_pipeline
+from src import transcription_pipeline
 
 import torch
 
-def main(transcript:bool=False, 
-        feature:bool=False, 
-        feature_selection:bool=False) -> str:
+def main_traditional_approach(transcript:bool=False, 
+                            feature:bool=False, 
+                            feature_selection:bool=False) -> str:
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Transcribe audio files
@@ -17,7 +17,7 @@ def main(transcript:bool=False,
         audio_test_files = utils.get_files(path_config["test"]["AUDIO_TEST_PATH"], data_type="test")
 
         model_config = utils.load_yaml("src/config/model.yaml")
-        utils.transcribe_audio_files(audio_train_files, 
+        transcription_pipeline.transcribe_audio_files(audio_train_files, 
                                     path_config["train"]["MMSE_DIAG_TRAIN_PATH"], 
                                     path_config["train"]["CSV_SEGMENT_TRAIN_PATH"], 
                                     data_type="train", 
@@ -26,7 +26,7 @@ def main(transcript:bool=False,
                                     batch_size=model_config["whisper"]["BATCH_SIZE"], 
                                     device=DEVICE, 
                                     output_path=path_config["TRANSCRIPT_PATH"])
-        utils.transcribe_audio_files(audio_test_files, 
+        transcription_pipeline.transcribe_audio_files(audio_test_files, 
                                     path_config["test"]["MMSE_DIAG_TEST_PATH"], 
                                     path_config["test"]["CSV_SEGMENT_TEST_PATH"], 
                                     data_type="test", 
@@ -43,17 +43,17 @@ def main(transcript:bool=False,
 
         # Data extraction TRAIN
         # Extract train linguistic features and praat feature
-        utils.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
+        feature_extraction_pipeline.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
                                 whisper_transcript_path=whisper_transcript_path,
                                 data_type="train", 
                                 use_egemap02=False, use_compare=False, linguistic=True)
         # Extract train egeMAP02 features
-        utils.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
+        feature_extraction_pipeline.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
                                 whisper_transcript_path=whisper_transcript_path,
                                 data_type="train", 
                                 use_egemap02=True, use_compare=False, linguistic=False)
         # Extract train ComParE features
-        utils.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
+        feature_extraction_pipeline.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
                                 whisper_transcript_path=whisper_transcript_path,
                                 data_type="train", 
                                 use_egemap02=False, use_compare=True, linguistic=False)
@@ -61,17 +61,17 @@ def main(transcript:bool=False,
 
         # Data extraction TEST
         # Extract test linguistic features and praat feature
-        utils.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
+        feature_extraction_pipeline.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
                                 whisper_transcript_path=whisper_transcript_path,
                                 data_type="test", 
                                 use_egemap02=False, use_compare=False, linguistic=True)
         # Extract test egeMAP02 features
-        utils.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
+        feature_extraction_pipeline.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
                                 whisper_transcript_path=whisper_transcript_path,
                                 data_type="test", 
                                 use_egemap02=True, use_compare=False, linguistic=False)
         # Extract test ComParE features
-        utils.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
+        feature_extraction_pipeline.extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
                                 whisper_transcript_path=whisper_transcript_path,
                                 data_type="test", 
                                 use_egemap02=False, use_compare=True, linguistic=False)
@@ -85,4 +85,4 @@ def main(transcript:bool=False,
 
 if __name__ == "__main__":
 
-    main(transcript=False, feature=True)
+    main_traditional_approach(transcript=False, feature=True)

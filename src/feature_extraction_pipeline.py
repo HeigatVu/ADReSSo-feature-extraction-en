@@ -13,7 +13,7 @@ from scipy.stats import skew, kurtosis
 
 import os
 
-######################################### TRADITIONAL APROACH #########################################
+
 # Runing on each segment and calculate statistics with extracting PRAAT features
 def process_acoustic_features_praat(audio_path:str, 
                                     diarization_segment_path:str, 
@@ -271,7 +271,6 @@ def extract_features(output_dir: str,
     # Linguistic features are independent of acoustic method
     if linguistic:
         output_linguistic_file = Path(output_dir) / f"adresso_features_linguistic_{data_type}.csv"
-        Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     transcript_files = glob.glob(whisper_transcript_path + f"/adresso_transcripts_{data_type}.csv")
     transcript_files = transcript_files[0]

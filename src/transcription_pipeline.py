@@ -29,6 +29,9 @@ def transcribe_audio_files(audio_files:Dict[str, List[Path]],
     if token:
         login(token=token)
 
+    # Create output directory
+    os.makedirs(output_path, exist_ok=True)
+
     torch_type=torch.float16 if torch.cuda.is_available() else torch.float32
     if not multipleGPU:
         transcriber = pipeline(
