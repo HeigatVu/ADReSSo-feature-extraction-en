@@ -215,7 +215,7 @@ def evaluate_deixis(transcripti:str, lang:str="en") -> tuple[float]:
     doc = nlp(transcripti or "")
 
     person_deixis_tags = {"PRP", "PRP$", "WP", "WP$"}
-    # Spatial and Temporal deixis are strictly defined by context-dependent words
+    # Spatial and Temporal deixis are strictly defined by context-dependent wordse lưu code trong đó e dạo ít code theo 
     spatial_words = {"here", "there", "this", "that", "these", "those"}
     temporal_words = {"now", "then", "today", "tomorrow", "yesterday", "ago", "soon", "later"}
 

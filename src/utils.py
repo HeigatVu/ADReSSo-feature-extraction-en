@@ -76,17 +76,34 @@ def csv_to_pkl(csv_path:str,
     with open(pkl_path, "wb") as f:
         pickle.dump(out, f)
 
-
-def load_pkl(pkl_path:str) -> pd.DataFrame:
-    """Load PKL file and return DataFrame
-    """
-    with open(pkl_path, "rb") as f:
-        data = pickle.load(f)
-    return pd.DataFrame(data)
-
 def fit_scaler(X:pd.DataFrame) -> tuple[np.ndarray, StandardScaler]:
     """Fit scaler to training data and return scaled data
     """
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     return X_scaled, scaler
+
+def load_data(pkl_path:str, 
+            feature_names:list=None,
+            meta_data:bool=False) -> pd.DataFrame:
+    """Load data for feature selection and classification
+    """
+    df = pd.read_pickle(pkl_path)
+
+    X_train = np.array(df["data"].tolist())
+    X_train_scaled, _ = fit_scaler(X_train)
+
+    data_expanded = pd.DataFrame(
+        X_train_scaled,
+        index=df.index
+    )
+
+    if feature_names is not None:
+        data_expanded.columns = feature_names
+    else:
+        data_expanded.columns = [f'feature_{i}' for i in range(data_expanded.shape[1])]
+
+    if meta_data:
+        return pd.concat([df[['pid', 'mmse']], data_expanded, df['label']], axis=1)
+    else:
+        return pd.concat([data_expanded, df['label']], axis=1)

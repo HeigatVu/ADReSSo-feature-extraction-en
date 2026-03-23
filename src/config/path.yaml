@@ -1,6 +1,8 @@
 BASE_PATH: ""
 OUTPUT_FEATURE_PATH: "${BASE_PATH}/output/features"
 
+TOP_K_FEATURE_PATH: "${BASE_PATH}/output/top_k_features"
+
 # Extract transcripts
 TRANSCRIPT_PATH: "${BASE_PATH}/output/transcripts"
 
