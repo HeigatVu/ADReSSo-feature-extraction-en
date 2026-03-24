@@ -56,8 +56,7 @@ def evaluate_all_models(X_train, y_train, strategy="hybrid", k=20, n_iter=20):
     return best_estimators
 
 def evaluate_test_set(best_estimators: dict, X_test: pd.DataFrame, y_test: pd.Series) -> pd.DataFrame:
-    """
-    Evaluates fitted RandomizedSearchCV pipelines on a hold-out test set.
+    """ Evaluates fitted RandomizedSearchCV pipelines on a hold-out test set.
     """
     results = []
     

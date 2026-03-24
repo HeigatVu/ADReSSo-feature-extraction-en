@@ -37,8 +37,8 @@ def main_traditional_approach(transcript:bool=False,
     if classification_model:
         # Define test configurations
         tests = {
-            "hybrid": ["linguistic"],
-            "pca": ["linguistic"]
+            "hybrid": ["linguistic", ],
+            "pca": ["egemaps"]
         }
 
         for strategy, feature_sets in tests.items():
