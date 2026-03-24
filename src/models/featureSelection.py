@@ -1,122 +1,65 @@
 import numpy as np
 import pandas as pd
 
-from scipy.stats import f_oneway
-import operator
-
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.decomposition import PCA
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_selection import SelectKBest, SelectFromModel, f_classif
 
-# Using MRMR build based on https://github.com/elliotweissberg/Algorithms/blob/master/MRMr_Explained.ipynb
-def get_idxs_by_class(df:pd.DataFrame, 
-                    target_name:str) -> list[np.ndarray]:
-    """ Group indices by class
+from mrmr import mrmr_classif
+
+
+class PCASelector(BaseEstimator, TransformerMixin):
+    """ PCA feature selection
     """
-    result = []
-    for value in df[target_name].unique():
-        result.append(df[df[target_name] == value].index)
 
-    return result
+    def __init__(self, n_components: float = 0.95, random_state: int = 42):
+        self.n_components = n_components
+        self.random_state = random_state
 
-def get_features(df:pd.DataFrame, 
-                target_name:str) -> list[str]:
-    """ Get features from DataFrame
+    def fit(self, X, y=None):
+        self._pca = PCA(n_components=self.n_components, random_state=self.random_state)
+        self._pca.fit(X)
+        return self
+
+    def transform(self, X):
+        return self._pca.transform(X)
+
+    def fit_transform(self, X, y=None):
+        return self.fit(X, y).transform(X)
+
+class HybridFeatureSelector(BaseEstimator, TransformerMixin):
+    """ Union of top-k features from ANOVA, Random Forest, and MRMR
     """
-    feature_names = []
-    for col in df.columns:
-        if col != target_name:
-            feature_names.append(col)
-    return feature_names
 
-def calc_feature_relevance(df:pd.DataFrame, 
-                            feature_name:str, 
-                            idxs_by_class:list[np.ndarray]) -> float:
-    """ Calculate feature relevance between two classes
-    """
-    
-    result = []
-    for class_idxs in idxs_by_class:
-        result.append(df[feature_name][class_idxs].values)
+    def __init__(self, k: int = 10):
+        self.k = k
 
-    return f_oneway(*result).statistic
+    def fit(self, X, y=None):
+        # Normalise input to DataFrame so mrmr_classif can use column names
+        df = pd.DataFrame(X) if isinstance(X, np.ndarray) else X.copy()
+        df.columns = df.columns.astype(str)
 
-def calculate_all_feature_relevances(df:pd.DataFrame, 
-                                    features:list[str], 
-                                    idxs_by_class:list[np.ndarray]) -> dict[str, float]:
-    """ Calculate feature relevance for all features
-    """
-    
-    relevance = dict()
-    for feat in features:
-        relevance[feat] = calc_feature_relevance(df, feat, idxs_by_class)
-    return relevance
+        # 1. ANOVA
+        self._anova = SelectKBest(f_classif, k=self.k).fit(df, y)
+        anova_cols = set(df.columns[self._anova.get_support()])
 
+        # 2. Random Forest
+        rf = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+        self._rf_sel = SelectFromModel(rf, max_features=self.k, threshold=-np.inf).fit(df, y)
+        rf_cols = set(df.columns[self._rf_sel.get_support()])
 
-def calculate_featrure_redundancy(df:pd.DataFrame,
-                                feature:str,
-                                ranked_features:list,
-                                calculated_correlations:dict) -> int:
-    """ Calculate feature redundancy between two classes
-    """
-    redundacy = 0
-    for feat in ranked_features:
-        key = (feat, feature)
-        if key not in calculated_correlations:
-            corr_value = abs(np.corrcoef(df[feature], df[feat])[1, 0])
-            calculated_correlations[(feat, feature)] = corr_value
-            calculated_correlations[(feature, feat)] = corr_value
-        redundacy += calculated_correlations[key]
-    return redundacy
+        # 3. MRMR (difference & quotient)
+        mrmr_diff = set(mrmr_classif(df, y, K=self.k))
+        mrmr_quot = set(mrmr_classif(df, y, K=self.k, relevance="f", redundancy="c"))
 
-def rank_features(df:pd.DataFrame,
-                    target_name:str,
-                    method="difference") -> list[str]:
-    """ Rank features by relevance and redundancy 
-    """
-    use_differences = method == "difference"
-    idxs_by_class = get_idxs_by_class(df, target_name)
-    features = get_features(df, target_name)
-    feature_relevance = calculate_all_feature_relevances(df, features, idxs_by_class)
-    calculated_correlations = dict()
-    ranked_features = []
-    
-    most_important_feature = max(feature_relevance.items(), key=operator.itemgetter(1))[0]
-    ranked_features.append(most_important_feature)
-    
-    while len(ranked_features) != len(features):
-        top_importance = float('-inf')
-        most_important_feature = None
-        for feat in features:
-            if feat in ranked_features:
-                continue
+        # Union of all methods
+        merged = anova_cols | rf_cols | mrmr_diff | mrmr_quot
+        self.selected_features_ = sorted(merged)
+        self.selected_indices_  = [df.columns.get_loc(c) for c in self.selected_features_]
+        return self
 
-            redundancy = calculate_featrure_redundancy(df, feat, ranked_features, calculated_correlations)
-            relevance = feature_relevance[feat]
-            if use_differences:
-                importance = relevance - redundancy
-            else:
-                importance = relevance / redundancy
-
-            if importance > top_importance:
-                top_importance = importance
-                most_important_feature = feat
-
-        ranked_features.append(most_important_feature)
-
-    return ranked_features
-
-
-# Using PCA
-def pca_selection(X_train_scaled:np.ndarray, 
-                    X_test_scaled:np.ndarray, 
-                    n_components:float=0.95) -> tuple[np.ndarray, np.ndarray]:
-    """ Select features using PCA
-    """
-    pca = PCA(n_components=n_components)
-    X_train_pca = pca.fit_transform(X_train_scaled)
-    X_test_pca = pca.transform(X_test_scaled)
-
-    n_comp = pca.n_components_
-    var = pca.explained_variance_ratio_.sum()
-    print(f"\nPCA — {n_comp} components explain {var * 100:.1f}% of variance")
-    print(f"  Reduced: {X_train_scaled.shape[1]} → {n_comp} dimensions")
-    return X_train_pca, X_test_pca
+    def transform(self, X):
+        if isinstance(X, pd.DataFrame):
+            return X.iloc[:, self.selected_indices_].values
+        return X[:, self.selected_indices_]

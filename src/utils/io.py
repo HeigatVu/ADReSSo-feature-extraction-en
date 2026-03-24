@@ -1,18 +1,13 @@
-from typing import Dict, List
+from typing import List
 from pathlib import Path
 from omegaconf import OmegaConf
 import pandas as pd
 import numpy as np
 import pickle
-from sklearn.preprocessing import StandardScaler, LabelEncoder
 
-def load_yaml(yaml_path:str) -> dict:
-    """Load YAML file and set BASE_PATH to project root
-    """
+def load_yaml(yaml_path: str) -> dict:
+    """Load YAML file and set BASE_PATH to project root."""
     conf = OmegaConf.load(yaml_path)
-    if "BASE_PATH" in conf:
-        project_root = str(Path(__file__).parent.parent.absolute())
-        conf.BASE_PATH = project_root
     return conf
 
 
@@ -76,25 +71,16 @@ def csv_to_pkl(csv_path:str,
     with open(pkl_path, "wb") as f:
         pickle.dump(out, f)
 
-def fit_scaler(X:pd.DataFrame) -> tuple[np.ndarray, StandardScaler]:
-    """Fit scaler to training data and return scaled data
-    """
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    return X_scaled, scaler
-
 def load_data(pkl_path:str, 
             feature_names:list=None,
             meta_data:bool=False, df_csv:str=None) -> pd.DataFrame:
     """Load data for feature selection and classification
     """
     df = pd.read_pickle(pkl_path)
-
-    X_train = np.array(df["data"].tolist())
-    X_train_scaled, _ = fit_scaler(X_train)
+    X_train = np.array(df["data"].tolist()) # Do not scale here
 
     data_expanded = pd.DataFrame(
-        X_train_scaled,
+        X_train,
         index=df.index
     )
 

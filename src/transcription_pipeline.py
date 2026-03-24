@@ -10,6 +10,7 @@ from huggingface_hub import login
 from dotenv import load_dotenv
 load_dotenv()
 
+from src.utils import io
 
 
 # Transcript
@@ -155,3 +156,31 @@ def transcribe_audio_files(audio_files:Dict[str, List[Path]],
         pd.DataFrame(results).to_csv(output_file, index=False)
 
     return f"Done {data_type}"
+
+def transcript_pipeline() -> None:
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    # Get files
+    path_config = io.load_yaml("src/config/path.yaml")
+    audio_train_files = io.get_files(path_config["train"]["AUDIO_TRAIN_PATH"], data_type="train")
+    audio_test_files = io.get_files(path_config["test"]["AUDIO_TEST_PATH"], data_type="test")
+
+    model_config = io.load_yaml("src/config/model.yaml")
+    transcribe_audio_files(audio_train_files, 
+                                path_config["train"]["MMSE_DIAG_TRAIN_PATH"], 
+                                path_config["train"]["CSV_SEGMENT_TRAIN_PATH"], 
+                                data_type="train", 
+                                multipleGPU=model_config["whisper"]["MULTIPLE_GPU"], 
+                                model_name=model_config["whisper"]["MODEL_NAME"], 
+                                batch_size=model_config["whisper"]["BATCH_SIZE"], 
+                                device=DEVICE, 
+                                output_path=path_config["TRANSCRIPT_PATH"])
+    transcribe_audio_files(audio_test_files, 
+                                path_config["test"]["MMSE_DIAG_TEST_PATH"], 
+                                path_config["test"]["CSV_SEGMENT_TEST_PATH"], 
+                                data_type="test", 
+                                multipleGPU=model_config["whisper"]["MULTIPLE_GPU"], 
+                                model_name=model_config["whisper"]["MODEL_NAME"], 
+                                batch_size=model_config["whisper"]["BATCH_SIZE"], 
+                                device=DEVICE, 
+                                output_path=path_config["TRANSCRIPT_PATH"])
+    print("Transcript pipeline done")

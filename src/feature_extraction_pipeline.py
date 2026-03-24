@@ -13,6 +13,8 @@ from scipy.stats import skew, kurtosis
 
 import os
 
+from src.utils import io
+
 
 # Runing on each segment and calculate statistics with extracting PRAAT features
 def process_acoustic_features_praat(audio_path:str, 
@@ -330,3 +332,44 @@ def extract_features(output_dir: str,
         if df_acoustic_list:
             df_acoustic = pd.concat(df_acoustic_list, ignore_index=True)
             df_acoustic.to_csv(output_acoustic_file, index=False)
+
+
+def feature_extraction_pipeline() -> None:
+    path_config = io.load_yaml("src/config/path.yaml")
+    whisper_transcript_path = path_config["TRANSCRIPT_PATH"]
+
+    # Data extraction TRAIN
+    # Extract train linguistic features and praat feature
+    extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
+                            whisper_transcript_path=whisper_transcript_path,
+                            data_type="train", 
+                            use_egemap02=False, use_compare=False, linguistic=True)
+    # Extract train egeMAP02 features
+    extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
+                            whisper_transcript_path=whisper_transcript_path,
+                            data_type="train", 
+                            use_egemap02=True, use_compare=False, linguistic=False)
+    # Extract train ComParE features
+    extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
+                            whisper_transcript_path=whisper_transcript_path,
+                            data_type="train", 
+                            use_egemap02=False, use_compare=True, linguistic=False)
+    print("finish feature extraction train set")
+
+    # Data extraction TEST
+    # Extract test linguistic features and praat feature
+    extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
+                            whisper_transcript_path=whisper_transcript_path,
+                            data_type="test", 
+                            use_egemap02=False, use_compare=False, linguistic=True)
+    # Extract test egeMAP02 features
+    extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
+                            whisper_transcript_path=whisper_transcript_path,
+                            data_type="test", 
+                            use_egemap02=True, use_compare=False, linguistic=False)
+    # Extract test ComParE features
+    extract_features(output_dir=path_config["OUTPUT_FEATURE_PATH"], 
+                            whisper_transcript_path=whisper_transcript_path,
+                            data_type="test", 
+                            use_egemap02=False, use_compare=True, linguistic=False)
+    print("finish feature extraction test set")

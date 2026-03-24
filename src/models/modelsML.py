@@ -61,7 +61,9 @@ def create_hyperparameter_space(use_pipeline:bool=True) -> dict:
         prefix + "n_estimators": list(range(50, 501, 50)),
         prefix + "max_depth": [None] + list(range(5, 31, 5)),
         prefix + "min_samples_split": [2, 3, 4, 5],
-        prefix + "min_samples_leaf": [1, 2, 3]
+        prefix + "min_samples_leaf": [1, 2, 3],
+
+
     }
 
     mlp_params = {
@@ -80,10 +82,20 @@ def create_hyperparameter_space(use_pipeline:bool=True) -> dict:
         prefix + "gamma": uniform(0, 0.5)
     }
 
+    # Prefix for the feature selection
+
+
+    # Repeat for other models if you want to tune 'k' for them too
+    lr_params = {
+        prefix + "C": loguniform(1e-5, 1e2),
+        sel_prefix + "k": [5, 10, 15, 20]
+    }
+
     return {
         "lr": lr_params,
         "svm": svm_params,
         "rf": rf_params,
         "mlp": mlp_params,
-        "xgb": xgb_params
+        "xgb": xgb_params,
+        ""
     }
