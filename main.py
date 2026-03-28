@@ -32,10 +32,10 @@ def main_traditional_approach(transcript:bool=False,
     if classification_model:
         # Define test configurations
         tests = {
-            # "hybrid": ["compare", "egemaps", "linguistic", "praat"],
-            # "pca": ["compare", "egemaps", "linguistic", "praat"]
+            "hybrid": ["compare", "egemaps", "linguistic", "praat"],
+            "pca": ["compare", "egemaps", "linguistic", "praat"]
         }
-        # model_feature_selection_pipline.model_pipeline(tests)
+        model_feature_selection_pipline.model_pipeline(tests)
                 
 
 if __name__ == "__main__":
