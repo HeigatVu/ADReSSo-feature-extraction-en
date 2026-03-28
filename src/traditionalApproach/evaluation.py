@@ -13,8 +13,7 @@ def evaluate_all_models(X_train:pd.DataFrame,
                         strategy:str="hybrid", 
                         n_iter:int=20, 
                         cv:int=5) -> tuple[pd.DataFrame, dict]:
-    """
-    Runs RandomizedSearchCV across all models for a given dataset and feature selection strategy.
+    """ Runs RandomizedSearchCV across all models for a given dataset and feature selection strategy.
     """
     # Load model
     models = modelsML.create_models()

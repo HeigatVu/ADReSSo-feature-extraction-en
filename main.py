@@ -20,8 +20,9 @@ def main_traditional_approach(transcript:bool=False,
         feature_extraction_pipeline.feature_extraction_pipeline()
         print(f"finish feature extraction train and test set")
         path_config = io.load_yaml("src/config/path.yaml")
-        pkl_path = path_config["PKL_PATH"]
-        feature_path = path_config["OUTPUT_FEATURE_PATH"]
+        pkl_path = path_config["PKL_TRADITIONAL_PATH"]
+        feature_path = path_config["OUTPUT_TRADITIONAL_FEATURE_PATH"]
+        Path(pkl_path).mkdir(parents=True, exist_ok=True)
         feature_list_files = glob.glob(feature_path + "/*.csv")
         for feature_file in feature_list_files:
             feature_file_name = Path(feature_file).stem
@@ -32,8 +33,10 @@ def main_traditional_approach(transcript:bool=False,
     if classification_model:
         # Define test configurations
         tests = {
-            "hybrid": ["compare", "egemaps", "linguistic", "praat"],
-            "pca": ["compare", "egemaps", "linguistic", "praat"]
+            # "hybrid": ["compare", "egemaps", "linguistic", "praat"],
+            # "pca": ["compare", "egemaps", "linguistic", "praat"]
+            "hybrid": ["linguistic"],
+            "pca": ["linguistic"]
         }
         model_feature_selection_pipline.model_pipeline(tests)
                 

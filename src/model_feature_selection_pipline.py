@@ -27,7 +27,7 @@ def model_pipeline(tests:dict) -> None:
         print(f"  STRATEGY: {strategy.upper()}")
         for feat_type in feature_sets:
             # Load Train
-            df_csv_tr = pd.read_csv(f"{path_config['OUTPUT_FEATURE_PATH']}/adresso_{feat_type}_train.csv")
+            df_csv_tr = pd.read_csv(f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{feat_type}_train.csv")
             df_train = io.load_data(f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{feat_type}_train.pkl", df_csv=df_csv_tr)
             X_train, y_train = df_train.drop(columns=["label"]), df_train["label"]
         

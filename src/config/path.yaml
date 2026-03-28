@@ -1,5 +1,6 @@
 BASE_PATH: "/home/heigatvu/MyFile/my-project/ADReSSo-feature-extraction"
-OUTPUT_FEATURE_PATH: "${BASE_PATH}/output/features"
+
+OUTPUT_TRADITIONAL_FEATURE_PATH: "${BASE_PATH}/output/traditionalFeatures"
 
 TOP_K_FEATURE_PATH: "${BASE_PATH}/output/top_k_features"
 
@@ -7,7 +8,7 @@ TOP_K_FEATURE_PATH: "${BASE_PATH}/output/top_k_features"
 TRANSCRIPT_PATH: "${BASE_PATH}/output/transcripts"
 
 # PKL files
-PKL_TRADITIONAL_PATH: "${BASE_PATH}/output/pkl/features"
+PKL_TRADITIONAL_PATH: "${BASE_PATH}/output/pkl/traditionalFeatures"
 
 train:
     CSV_SEGMENT_TRAIN_PATH: "${BASE_PATH}/data/diagnosis/train/segmentation"
@@ -21,4 +22,3 @@ test:
 
 output_model:
     TRADITIONAL_MODEL_PATH: "${BASE_PATH}/output/results/traditional"
-    
