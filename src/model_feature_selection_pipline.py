@@ -1,9 +1,9 @@
 import pandas as pd
 from sklearn import set_config
+set_config(transform_output="pandas")
 from pathlib import Path
 import os
 
-set_config(transform_output="pandas")
 from src.utils import io
 from src.traditionalApproach import evaluation
 
@@ -32,7 +32,7 @@ def model_pipeline(tests:dict) -> None:
             X_train, y_train = df_train.drop(columns=["label"]), df_train["label"]
         
             # Load Test
-            df_csv_test = pd.read_csv(f"{path_config['OUTPUT_FEATURE_PATH']}/adresso_{feat_type}_test.csv")
+            df_csv_test = pd.read_csv(f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{feat_type}_test.csv")
             df_test = io.load_data(f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{feat_type}_test.pkl", df_csv=df_csv_test)
             X_test, y_test = df_test.drop(columns=["label"]), df_test["label"]
 
@@ -50,8 +50,8 @@ def model_pipeline(tests:dict) -> None:
                 "Best_Model": best_row["Model"],
                 "Sensitivity": best_row["Sensitivity"],
                 "Specificity": best_row["Specificity"],
-                "ROC-AUC":     best_row["ROC-AUC"],
-                "Accuracy":    best_row["Accuracy"],
+                "ROC-AUC": best_row["ROC-AUC"],
+                "Accuracy": best_row["Accuracy"],
             })
 
     df_summary = pd.DataFrame(summary_rows)

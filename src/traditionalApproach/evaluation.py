@@ -1,10 +1,12 @@
 from sklearn.model_selection import RandomizedSearchCV
 from tqdm import tqdm
+import pandas as pd
 
-from sklearn.metrics import roc_auc_score, accuracy_score, confusion_matrix
+from sklearn.metrics import roc_auc_score, accuracy_score, confusion_matrix, make_scorer
 
 from src.traditionalApproach import tuning, modelsML
 
+from sklearn import set_config
 set_config(transform_output="pandas")
 
 def evaluate_all_models(X_train:pd.DataFrame,
@@ -12,7 +14,7 @@ def evaluate_all_models(X_train:pd.DataFrame,
                         feat_type:str="compare", 
                         strategy:str="hybrid", 
                         n_iter:int=20, 
-                        cv:int=5) -> tuple[pd.DataFrame, dict]:
+                        cv:int=10) -> tuple[pd.DataFrame, dict]:
     """ Runs RandomizedSearchCV across all models for a given dataset and feature selection strategy.
     """
     # Load model
@@ -34,23 +36,31 @@ def evaluate_all_models(X_train:pd.DataFrame,
         # Merged grid for testing
         merged_grid = {**cls_params[name], **selector_grid}
 
-        search = RandomizedSearchCV(
+        scoring = {
+            "sensitivity": make_scorer(recall_score),  # Sensitivity is the same as recall
+            "specificity": make_scorer(specificity_score),
+            "roc_auc": "roc_auc",
+            "accuracy": make_scorer(accuracy_score)
+        }
+
+
+        random_search = RandomizedSearchCV(
             estimator=pipeline,
             param_distributions=merged_grid,
             n_iter=n_iter,
-            scoring="roc_auc",
+            scoring=scoring,
             cv=cv,
             n_jobs=-1,
             random_state=42,
-            refit=True,
+            refit="accuracy",
         )
 
-        search.fit(X_train, y_train)
+        random_search.fit(X_train, y_train)
 
-        best_estimators[name.upper()] = search
+        best_estimators[name.upper()] = random_search
         results = []
 
-        best_params = search.best_params_
+        best_params = random_search.best_params_
         best_selector_val = best_params.get(selector_key, "N/A")
 
         cls_best = dict()
