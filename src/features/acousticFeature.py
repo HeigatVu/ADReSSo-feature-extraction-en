@@ -127,17 +127,6 @@ def get_pitch_attributes(audio_file:parselmouth.Sound,
     return attributes, pitch_values
 
 
-def get_speaking_rate(audio_path:str,
-                        transcript:str="",
-                        ) -> float:
-    """
-    Function to get speaking rate, approximated as number of words divided by total duration.
-    """
-    audio_file = parselmouth.Sound(audio_path)
-    duration = call(audio_file, 'Get end time')
-    word_count = len(str(transcript).split())
-    return word_count / duration if duration > 0 else 0
-
 ## Voice Quality and Phonation
 # def get_harmonics_to_noise_ratio_attributes(
 #                                             audio_file:parselmouth.Sound,

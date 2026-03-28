@@ -1,6 +1,8 @@
 from scipy.stats import loguniform, randint, uniform
 import numpy as np
 import src.traditionalApproach.featureSelection as featureSelection
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 def tuning_hyperparameter_model(use_pipeline:bool=True) -> dict:
     """ Create hyperparameter space for classifiers
@@ -80,7 +82,7 @@ def build_pipeline(clf:str="lr", strategy:str="hybrid") -> tuple:
     """
     if strategy == "pca":
         selector_step = ("pca", featureSelection.PCASelector())
-        selector_grid = pca_selector_grid()
+        selector_grid = pca_selector_hyperparameters()
     elif strategy == "hybrid":
         selector_step = ("feat_sel", featureSelection.HybridFeatureSelector())
         selector_grid = hybrid_selector_hyperparameter()

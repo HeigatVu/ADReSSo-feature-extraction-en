@@ -72,12 +72,11 @@ def csv_to_pkl(csv_path:str,
         pickle.dump(out, f)
 
 def load_data(pkl_path:str, 
-            feature_names:list=None,
             meta_data:bool=False, df_csv:str=None) -> pd.DataFrame:
     """Load data for feature selection and classification
     """
     df = pd.read_pickle(pkl_path)
-    X_train = np.array(df["data"].tolist()) # Do not scale here
+    X_train = np.array(df["data"].tolist())
 
     data_expanded = pd.DataFrame(
         X_train,

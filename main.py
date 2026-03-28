@@ -4,13 +4,12 @@ from src import transcription_pipeline
 from src import model_feature_selection_pipline
 import glob
 from pathlib import Path
-
-
+import pandas as pd
 
 
 def main_traditional_approach(transcript:bool=False, 
                             feature:bool=False, 
-                            classification_model:bool=False, k:int = 10) -> str:
+                            classification_model:bool=False) -> str:
 
     # Transcribe audio files
     if transcript:
@@ -33,23 +32,14 @@ def main_traditional_approach(transcript:bool=False,
     if classification_model:
         # Define test configurations
         tests = {
-            "hybrid": ["linguistic", ],
-            "pca": ["egemaps"]
+            # "hybrid": ["compare", "egemaps", "linguistic", "praat"],
+            # "pca": ["compare", "egemaps", "linguistic", "praat"]
         }
-
-        for strategy, feature_sets in tests.items():
-            print(f"\n=== STARTING {strategy.upper()} EVALUATION ===")
-            
-            for feat_type in feature_sets:
-                print(f"\n--- Feature Set: {feat_type} ---")
-                model_feature_selection_pipline.model_pipeline(strategy=strategy, feat_type=feat_type, k=k)
-        print(f"Finish model")
-            
+        # model_feature_selection_pipline.model_pipeline(tests)
                 
 
 if __name__ == "__main__":
 
     main_traditional_approach(transcript=False, 
                             feature=False, 
-                            pkl_data=False, 
-                            classification_model=True, k=20)
+                            classification_model=True)

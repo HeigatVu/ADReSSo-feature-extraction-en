@@ -143,6 +143,15 @@ def tag_count(pos_tags:list[tuple]) -> dict[str:int,float]:
     else:
         content_density = float("nan")
 
+## Voice Quality and Phonation
+# def get_harmonics_to_noise_ratio_attributes(
+#                                             audio_file:parselmouth.Sound,
+#                                             harmonic_type:str="preferred",
+#                                             time_step:float=0.01,
+#                                             min_time:float=0.0,
+#                                             max_time:float=0.0,
+#                                             minimum_pit
+
     counts["total_counts"] = total_counts
     counts["open_class_words"] = open_class_words
     counts["closed_class_words"] = closed_class_words
@@ -242,6 +251,18 @@ def evaluate_deixis(transcripti:str, lang:str="en") -> tuple[float]:
             temporal_count += 1
 
     return round((person_count/total_words), 5), round((spatial_count/total_words), 5), round((temporal_count/total_words), 5)
+
+# def get_speaking_rate(audio_path:str,
+#                         transcript:str="",
+#                         ) -> float:
+#     """
+#     Function to get speaking rate, approximated as number of words divided by total duration.
+#     """
+#     audio_file = parselmouth.Sound(audio_path)
+#     duration = call(audio_file, 'Get end time')
+#     word_count = len(str(transcript).split())
+#     return word_count / duration if duration > 0 else 0
+
 
 def pause_count():
     pass
