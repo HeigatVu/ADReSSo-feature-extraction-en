@@ -2,7 +2,6 @@ from src.utils import io
 from src import feature_extraction_pipeline
 from src import transcription_pipeline
 from src import model_feature_selection_pipline
-from src.models import featureSelection
 import glob
 from pathlib import Path
 
@@ -11,7 +10,6 @@ from pathlib import Path
 
 def main_traditional_approach(transcript:bool=False, 
                             feature:bool=False, 
-                            pkl_data:bool=False,
                             classification_model:bool=False, k:int = 10) -> str:
 
     # Transcribe audio files
@@ -22,8 +20,6 @@ def main_traditional_approach(transcript:bool=False,
     if feature:
         feature_extraction_pipeline.feature_extraction_pipeline()
         print(f"finish feature extraction train and test set")
-
-    if pkl_data:
         path_config = io.load_yaml("src/config/path.yaml")
         pkl_path = path_config["PKL_PATH"]
         feature_path = path_config["OUTPUT_FEATURE_PATH"]

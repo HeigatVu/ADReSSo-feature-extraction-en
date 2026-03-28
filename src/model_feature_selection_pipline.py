@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from sklearn.metrics import roc_auc_score, accuracy_score, confusion_matrix
 
-from src.models import featureSelection
+from src.models import tuning, modelsML
 from src.utils import io
 
 
