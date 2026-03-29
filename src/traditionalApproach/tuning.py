@@ -89,7 +89,7 @@ def build_pipeline(clf:str="lr", strategy:str="hybrid", threshold:float=0.0) -> 
         selector_step = ("pca", featureSelection.PCASelector())
         selector_grid = pca_selector_hyperparameters()
     elif strategy == "hybrid":
-        selector_step = ("feat_sel", featureSelection.HybridFeatureSelector(treshold=threshold))
+        selector_step = ("feat_sel", featureSelection.HybridFeatureSelector(threshold=threshold))
         selector_grid = hybrid_selector_hyperparameter()
     
     pipeline = Pipeline([

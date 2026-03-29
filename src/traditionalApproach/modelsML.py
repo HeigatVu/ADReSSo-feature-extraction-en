@@ -5,6 +5,8 @@ from sklearn.neural_network import MLPClassifier
 
 import xgboost as xgb
 
+from src.utils import io
+
 def create_models() -> dict:
     """ Create classifiers
     """

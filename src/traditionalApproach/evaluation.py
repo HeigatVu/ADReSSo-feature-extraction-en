@@ -4,7 +4,7 @@ import pandas as pd
 from sklearn import set_config
 set_config(transform_output="pandas")
 
-from src.utils import metrics
+from src.utils import helperFn
 from src.traditionalApproach import tuning, modelsML
 
 def evaluate_selection_models(X_train:pd.DataFrame,
@@ -37,8 +37,8 @@ def evaluate_selection_models(X_train:pd.DataFrame,
         merged_grid = {**cls_params[name], **selector_grid}
 
         scoring = {
-            "sensitivity": make_scorer(metrics.sensitivity_score),
-            "specificity": make_scorer(metrics.specificity_score),
+            "sensitivity": make_scorer(helperFn.sensitivity_score),
+            "specificity": make_scorer(helperFn.specificity_score),
             "roc_auc": "roc_auc",
             "accuracy": make_scorer(accuracy_score)
         }
@@ -116,11 +116,11 @@ def evaluate_selection_test_set(best_estimators: dict,
             "Best_Selector_Value": search_obj.best_params_.get(selector_key, "N/A"),
         })
         
-    df_results = pd.DataFrame(results).sort_values(by="ROC-AUC", ascending=False)
+    df_results = pd.DataFrame(results).sort_values(by="Accuracy", ascending=False)
     return df_results
 
-def evaluation_model_pipeline(X_train:pd.DataFrame):
+def evaluate_baseline_models(X_train:pd.DataFrame):
     pass
 
-def evaluation_model_test_set(X_test:pd.DataFrame):
+def evaluate_baseline_models_test_set(X_test:pd.DataFrame):
     pass
