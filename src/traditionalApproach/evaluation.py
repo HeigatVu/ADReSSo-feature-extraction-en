@@ -1,17 +1,16 @@
 from sklearn.model_selection import RandomizedSearchCV
 from tqdm import tqdm
 import pandas as pd
+from sklearn.metrics import recall_score, specificity_score
+from sklearn import set_config
+set_config(transform_output="pandas")
 
 from sklearn.metrics import roc_auc_score, accuracy_score, confusion_matrix, make_scorer
 
 from src.traditionalApproach import tuning, modelsML
 
-from sklearn import set_config
-set_config(transform_output="pandas")
-
-def evaluate_all_models(X_train:pd.DataFrame,
+def evaluate_selection_models(X_train:pd.DataFrame,
                         y_train:pd.Series,
-                        feat_type:str="compare", 
                         strategy:str="hybrid", 
                         n_iter:int=20, 
                         cv:int=10) -> tuple[pd.DataFrame, dict]:
@@ -27,9 +26,7 @@ def evaluate_all_models(X_train:pd.DataFrame,
         selector_key = "feat_sel__k"
     
     best_estimators = {}
-    pbar = tqdm(models.items(), desc=f"Tuning [{strategy.upper()}] | {feat_type}")
-    for name, clf in pbar:
-        pbar.set_description(f"[{strategy.upper()}] | {feat_type} {name.upper()}")
+    for name, clf in models.items():
 
         pipeline, selector_grid = tuning.build_pipeline(clf, strategy)
 
@@ -72,13 +69,9 @@ def evaluate_all_models(X_train:pd.DataFrame,
             "Model": name.upper(),
             "Selector_Param": selector_key,
             "Best_Selector_Value": best_selector_val,
-            "Best_CV_ROC_AUC": round(search.best_score_, 4),
+            "Best_CV_ROC_AUC": round(random_search.best_score_, 4),
             "Best_Params": str(cls_best),
         })
-
-        tqdm.write(
-            f"{name.upper():5s} | {selector_key}={best_selector_val} | CV ROC-AUC={search.best_score_:4f}"
-        )
 
     df_results = pd.DataFrame(results).sort_values("Best_CV_ROC_AUC", ascending=False)
     print(df_results[

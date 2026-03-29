@@ -4,12 +4,12 @@ from src import transcription_pipeline
 from src import model_feature_selection_pipline
 import glob
 from pathlib import Path
-import pandas as pd
 
 
 def main_traditional_approach(transcript:bool=False, 
                             feature:bool=False, 
-                            classification_model:bool=False) -> str:
+                            classification_model:bool=False,
+                            early_fusion:bool=False) -> str:
 
     # Transcribe audio files
     if transcript:
@@ -43,4 +43,5 @@ if __name__ == "__main__":
 
     main_traditional_approach(transcript=False, 
                             feature=False, 
-                            classification_model=True)
+                            classification_model=True, early_fusion=False,
+                            )
