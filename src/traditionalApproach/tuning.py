@@ -68,23 +68,28 @@ def pca_selector_hyperparameters() -> dict:
 
     return pca_params
 
-def hybrid_selector_hyperparameter() -> dict:
+def hybrid_selector_hyperparameter(early_fusion:bool=False) -> dict:
     """ Tuning hybrid method
     """
 
-    hybrid_params = {
-        "feat_sel__k": list(range(5, 21, 5))
+    if early_fusion:
+        hybrid_params = {
+            "feat_sel__k": list(range(5, 21, 5))
+        }
+    else:
+        hybrid_params = {
+            "feat_sel__k": list(range(5, 21, 5))
     }
     return hybrid_params
 
-def build_pipeline(clf:str="lr", strategy:str="hybrid") -> tuple:
+def build_pipeline(clf:str="lr", strategy:str="hybrid", threshold:float=0.0) -> tuple:
     """ Build pipeline
     """
     if strategy == "pca":
         selector_step = ("pca", featureSelection.PCASelector())
         selector_grid = pca_selector_hyperparameters()
     elif strategy == "hybrid":
-        selector_step = ("feat_sel", featureSelection.HybridFeatureSelector())
+        selector_step = ("feat_sel", featureSelection.HybridFeatureSelector(treshold=threshold))
         selector_grid = hybrid_selector_hyperparameter()
     
     pipeline = Pipeline([

@@ -5,12 +5,15 @@ from src import model_feature_selection_pipline
 import glob
 from pathlib import Path
 
+import pandas as pd
+
 
 def main_traditional_approach(transcript:bool=False, 
                             feature:bool=False, 
                             classification_model:bool=False,
                             feature_selection:bool=False,
-                            early_fusion:bool=False) -> str:
+                            early_fusion:bool=False,
+                            threshold:float=0.0) -> str:
 
     # Transcribe audio files
     if transcript:
@@ -37,9 +40,12 @@ def main_traditional_approach(transcript:bool=False,
             "hybrid": ["compare", "egemaps", "linguistic", "praat"],
             "pca": ["compare", "egemaps", "linguistic", "praat"]
         }
-        model_feature_selection_pipline.model_pipeline(tests, early_fusion=early_fusion, feature_selection=feature_selection)
-                
+        model_feature_selection_pipline.model_pipeline(tests, 
+                                                        early_fusion=early_fusion, 
+                                                        feature_selection=feature_selection, 
+                                                        threshold=threshold)
 
+        
 if __name__ == "__main__":
 
     main_traditional_approach(transcript=False, 

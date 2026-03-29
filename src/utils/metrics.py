@@ -27,14 +27,14 @@ def calculate_metrics(y_true:np.ndarray, y_pred:np.ndarray, y_proba:np.ndarray=N
     sens = sensitivity_score(y_true, y_pred)
     spec = specificity_score(y_true, y_pred)
     if y_proba is not None:
-        aucroc = roc_auc_score(y_true, y_proba)
+        rocauc = roc_auc_score(y_true, y_proba)
     else:
-        aucroc = roc_auc_score(y_true, y_pred)
+        rocauc = roc_auc_score(y_true, y_pred)
 
     return {
         "sensitivity": sens,
         "specificity": spec,
-        "auc-roc": aucroc,
+        "roc-auc": rocauc,
         "accuracy": acc,
     }
 
