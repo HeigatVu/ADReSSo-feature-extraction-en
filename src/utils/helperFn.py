@@ -62,43 +62,11 @@ def building_scoring() -> dict:
         "accuracy": make_scorer(accuracy_score)
     }
 
-def collect_cv_row(name:str, 
-                    random_search:RandomizedSearchCV, 
-                    selector_key:str) -> dict:
-    """ Extract result row from a fitted Randomized Search CV
+def load_early_fusion_split(path_config:dict,
+                            acoustic_type:str,
+                            data_type:str,
+                            add_compare:bool=False,) -> tuple[pd.DataFrame, pd.Series]:
+    """ Fused linguistic with acoustic feature
     """
 
-    best_params = random_search.best_params_
-    best_selector_val = best_params.get(selector_key, "N/A")
-    cls_best = dict()
-    for k, v in best_selector_val.items():
-        if k != selector_key:
-            cls_best[k] = v
-
-    return {
-        "Model": name.upper(),
-        "Selector_Param": selector_key,
-        "Best_Selector_Value": best_selector_val,
-        "Best_CV_Accuracy": round(random_search.best_score_, 3),
-        "Best_Params": str(cls_best),
-    }
-
-def collect_test_row(name:str,
-                        search_obj:RandomizedSearchCV,
-                        X_test:pd.DataFrame, y_test:pd.DataFrame,
-                        selector_key:str) -> dict:
-    """ 
-    """
-    best_pipeline = search_obj.best_estimator_
-    y_pred = best_pipeline.predict(X_test)
-    y_prob = best_pipeline.predict_proba(X_test)[:, 1]
-    metric_results = metrics.calculate_metrics(y_test, y_pred, y_prob)
-
-    return {
-        "Model": name.upper(),
-        "Sensitivity": round(metric_results["sensitivity"], 4),
-        "Specificity": round(metric_results["specificity"], 4),
-        "ROC-AUC": round(metric_results["roc-auc"], 4),
-        "Accuracy": round(metric_results["accuracy"], 4),
-        "Best_Selector_Value": search_obj.best_params_.get(selector_key, "N/A"),
-    }
+    pass

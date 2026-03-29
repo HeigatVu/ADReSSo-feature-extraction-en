@@ -74,14 +74,56 @@ def model_pipeline(tests:dict,
                         f"Test Results ({feat_type} | {strategy.upper()}\n)"
                         f"{test_metrics.to_markdown(index=False)}"
                     )
+            # Save CSV
+            df_summary = pd.DataFrame(summary_rows)
+
+            output_dir = path_config["output_model"]['TRADITIONAL_MODEL_PATH']
+            csv_path = os.path.join(output_dir, "results_selection_traditional_model.csv")
+            df_summary.to_csv(csv_path, index=False)
         else:
-            pass
+            pbar = tqdm(tests.items(), desc=f"Tuning")
+            for strategy, feature_sets in tests.items():
+                pbar.set_description(f"Tuning {strategy.upper()}")
+                pbar_feat = tqdm(feature_sets, desc=f"Feature Type")
+                for feat_type in pbar_feat:
+                    pbar_feat.set_description(f"Feature Type {feat_type.upper()}")
+                    # Train
+                    df_csv_tr = pd.read_csv(f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{feat_type}_train.csv")
+                    df_train = io.load_data(f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{feat_type}_train.pkl", df_csv=df_csv_tr)
+                    X_train, y_train = df_train.drop(columns=["label"]), df_train["label"]
+                
+                    # Load Test
+                    df_csv_test = pd.read_csv(f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{feat_type}_test.csv")
+                    df_test = io.load_data(f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{feat_type}_test.pkl", df_csv=df_csv_test)
+                    X_test, y_test = df_test.drop(columns=["label"]), df_test["label"]
 
-    # Save CSV
-    df_summary = pd.DataFrame(summary_rows)
+                    # Train and Evaluate
+                    df_train_results, fitted_models = evaluation.evaluate_baseline_models(X_train, y_train, strategy=strategy, feat_type=feat_type, threshold=0.0)
+                    test_metrics = evaluation.evaluate_baseline_models_test_set(fitted_models, X_test, y_test, strategy=strategy)
 
-    output_dir = path_config["output_model"]['TRADITIONAL_MODEL_PATH']
-    csv_path = os.path.join(output_dir, "results_selection_traditional_model.csv")
-    df_summary.to_csv(csv_path, index=False)
+                    print(f"\nTest Results ({feat_type} | {strategy.upper()}):")
+                    print(test_metrics.to_markdown(index=False))
+
+                    best_row = test_metrics.iloc[0]
+                    summary_rows.append({
+                        "Feature": FEATURE_DISPLAY_NAMES.get(feat_type, feat_type),
+                        "Strategy": strategy.upper(),
+                        "Best_Model": best_row["Model"],
+                        "Sensitivity": best_row["Sensitivity"],
+                        "Specificity": best_row["Specificity"],
+                        "ROC-AUC": best_row["ROC-AUC"],
+                        "Accuracy": best_row["Accuracy"],
+                    })
+                    tqdm.write(
+                        f"Test Results ({feat_type} | {strategy.upper()}\n)"
+                        f"{test_metrics.to_markdown(index=False)}"
+                    )
+
+                df_summary = pd.DataFrame(summary_rows)
+                # Save CSV
+                output_dir = path_config["output_model"]['TRADITIONAL_MODEL_PATH']
+                csv_path = os.path.join(output_dir, "results_raw_traditional_model.csv")
+                df_summary.to_csv(csv_path, index=False)
+
 
     print("Finish test")

@@ -1,7 +1,7 @@
 from src.utils import io
 from src import feature_extraction_pipeline
 from src import transcription_pipeline
-from src import model_feature_selection_pipline
+from src import model_feature_pipline
 import glob
 from pathlib import Path
 
@@ -11,9 +11,7 @@ import pandas as pd
 def main_traditional_approach(transcript:bool=False, 
                             feature:bool=False, 
                             classification_model:bool=False,
-                            feature_selection:bool=False,
-                            early_fusion:bool=False,
-                            threshold:float=0.0) -> str:
+                            early_fusion:bool=False) -> str:
 
     # Transcribe audio files
     if transcript:
@@ -40,12 +38,26 @@ def main_traditional_approach(transcript:bool=False,
             "hybrid": ["compare", "egemaps", "linguistic", "praat"],
             "pca": ["compare", "egemaps", "linguistic", "praat"]
         }
-        model_feature_selection_pipline.model_pipeline(tests, 
-                                                        early_fusion=early_fusion, 
-                                                        feature_selection=feature_selection, 
-                                                        threshold=threshold)
+        # Raw feature model
+        model_feature_pipline.model_pipeline(tests, 
+                                            early_fusion=early_fusion, 
+                                            feature_selection=False, 
+                                            threshold=threshold)
 
-        
+        # Selected feature model
+        model_feature_pipline.model_pipeline(tests, 
+                                            early_fusion=early_fusion, 
+                                            feature_selection=True, 
+                                            threshold=threshold)
+
+        # # Selected feature model removing correlated features threshold 0.9
+        # model_feature_pipline.model_pipeline(tests, 
+        #                                     early_fusion=early_fusion, 
+        #                                     feature_selection=True, 
+        #                                     threshold=0.9)
+
+        # Merged feature
+
 if __name__ == "__main__":
 
     main_traditional_approach(transcript=False, 
