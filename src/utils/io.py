@@ -72,7 +72,7 @@ def csv_to_pkl(csv_path:str,
         pickle.dump(out, f)
 
 def load_data(pkl_path:str, 
-            meta_data:bool=False, df_csv:str=None) -> pd.DataFrame:
+            meta_data:bool=False, df_csv:pd.DataFrame=None) -> pd.DataFrame:
     """Load data for feature selection and classification
     """
     df = pd.read_pickle(pkl_path)

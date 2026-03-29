@@ -62,11 +62,24 @@ def building_scoring() -> dict:
         "accuracy": make_scorer(accuracy_score)
     }
 
-def load_early_fusion_split(path_config:dict,
-                            acoustic_type:str,
-                            data_type:str,
-                            add_compare:bool=False,) -> tuple[pd.DataFrame, pd.Series]:
+def fused_feature(df_ling:pd.DataFrame,
+                    df_acoustic:pd.DataFrame,
+                    df_compare:pd.DataFrame=None) -> tuple[pd.DataFrame, pd.Series]:
     """ Fused linguistic with acoustic feature
     """
+    if len(df_ling) == len(df_acoustic):
+        # Linguisti feature
+        X_ling, y_ling = df_ling.drop(columns=["label"]), df_ling["label"]
+        
+        # Acoustic feature
+        X_ac, y_ac = df_acoustic.drop(columns=["label"]), df_acoustic["label"]
 
-    pass
+        if df_compare is not None and len(df_compare) == len(df_ling) and len(df_compare) == len(df_acoustic):
+            X_compare, y_compare = df_compare.drop(columns=["label"]), df_compare["label"]
+            X_fused = pd.concat([X_ling, X_ac, X_compare], axis=1)
+        else:
+            X_fused = pd.concat([X_ling, X_ac], axis=1)
+    else:
+        raise ValueError("The number of rows in the linguistic and acoustic features is not the same")
+    
+    return X_fused, y_ling
