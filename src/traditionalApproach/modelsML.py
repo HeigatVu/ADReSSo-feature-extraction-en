@@ -5,9 +5,12 @@ from sklearn.neural_network import MLPClassifier
 
 import xgboost as xgb
 
-def create_models(seed:int=42) -> dict:
+def create_models() -> dict:
     """ Create classifiers
     """
+
+    path_config = io.load_yaml("src/config/model.yaml")
+    seed = path_config["SEED"]
 
     lr = LogisticRegression(random_state=seed, max_iter=10000)
     svm = SVC(probability=True, random_state=seed)

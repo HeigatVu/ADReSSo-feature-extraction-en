@@ -1,12 +1,10 @@
 from sklearn.model_selection import RandomizedSearchCV
-from tqdm import tqdm
+from sklearn.metrics import make_scorer, accuracy_score, recall_score
 import pandas as pd
-from sklearn.metrics import recall_score, specificity_score
 from sklearn import set_config
 set_config(transform_output="pandas")
 
-from sklearn.metrics import roc_auc_score, accuracy_score, confusion_matrix, make_scorer
-
+from src.utils import metrics
 from src.traditionalApproach import tuning, modelsML
 
 def evaluate_selection_models(X_train:pd.DataFrame,
@@ -34,8 +32,8 @@ def evaluate_selection_models(X_train:pd.DataFrame,
         merged_grid = {**cls_params[name], **selector_grid}
 
         scoring = {
-            "sensitivity": make_scorer(recall_score),  # Sensitivity is the same as recall
-            "specificity": make_scorer(specificity_score),
+            "sensitivity": make_scorer(metrics.sensitivity_score),
+            "specificity": make_scorer(metrics.specificity_score),
             "roc_auc": "roc_auc",
             "accuracy": make_scorer(accuracy_score)
         }
@@ -81,7 +79,7 @@ def evaluate_selection_models(X_train:pd.DataFrame,
     return df_results, best_estimators
 
 
-def evaluate_test_set(best_estimators: dict, 
+def evaluate_selection_test_set(best_estimators: dict, 
                         X_test:pd.DataFrame,
                         y_test:pd.Series,
                         strategy:str="hybrid") -> pd.DataFrame:
@@ -103,26 +101,14 @@ def evaluate_test_set(best_estimators: dict,
         y_proba = best_pipeline.predict_proba(X_test)[:, 1]
         
         # 3. Calculate metrics
-        roc_auc = roc_auc_score(y_test, y_proba)
-        acc = accuracy_score(y_test, y_pred)
-        
-        # Calculate Sensitivity (True Positive Rate) and Specificity (True Negative Rate)
-        tn, fp, fn, tp = confusion_matrix(y_test, y_pred).ravel()
-        if (tp + fn) > 0:
-            sensitivity = tp / (tp + fn)
-        else:
-            sensitivity = 0
-        if (tn + fp) > 0:
-            specificity = tn / (tn + fp)
-        else:
-            specificity = 0
+        metric_results = metrics.calculate_metrics(y_test, y_pred, y_proba)
         
         results.append({
             "Model": name.upper(),
-            "Sensitivity": round(sensitivity, 4),
-            "Specificity": round(specificity, 4),
-            "ROC-AUC": round(roc_auc, 4),
-            "Accuracy": round(acc, 4),
+            "Sensitivity": round(metric_results["sensitivity"], 4),
+            "Specificity": round(metric_results["specificity"], 4),
+            "ROC-AUC": round(metric_results["auc-roc"], 4),
+            "Accuracy": round(metric_results["accuracy"], 4),
             "Best_Selector_Value": search_obj.best_params_.get(selector_key, "N/A"),
         })
         

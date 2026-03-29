@@ -8,6 +8,11 @@ from sklearn.feature_selection import SelectKBest, SelectFromModel, f_classif
 
 from mrmr import mrmr_classif
 
+from src.utils import io
+
+path_config = io.load_yaml("src/config/model.yaml")
+seed = path_config["SEED"]
+
 
 class PCASelector(BaseEstimator, TransformerMixin):
     """ PCA feature selection
@@ -45,7 +50,7 @@ class HybridFeatureSelector(BaseEstimator, TransformerMixin):
         anova_cols = set(df.columns[self._anova.get_support()])
 
         # 2. Random Forest
-        rf = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+        rf = RandomForestClassifier(n_estimators=100, random_state=seed, n_jobs=-1)
         self._rf_sel = SelectFromModel(rf, max_features=self.k, threshold=-np.inf).fit(df, y)
         rf_cols = set(df.columns[self._rf_sel.get_support()])
 

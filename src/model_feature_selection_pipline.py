@@ -50,8 +50,8 @@ def model_pipeline(tests:dict,
                     X_test, y_test = df_test.drop(columns=["label"]), df_test["label"]
 
                     # Train and Evaluate
-                    df_train_results, fitted_models = evaluation.evaluate_all_models(X_train, y_train, strategy=strategy, feat_type=feat_type)
-                    test_metrics = evaluation.evaluate_test_set(fitted_models, X_test, y_test)
+                    df_train_results, fitted_models = evaluation.evaluate_selection_models(X_train, y_train, strategy=strategy, feat_type=feat_type)
+                    test_metrics = evaluation.evaluate_selection_test_set(fitted_models, X_test, y_test)
 
                 print(f"\nTest Results ({feat_type} | {strategy.upper()}):")
                 print(test_metrics.to_markdown(index=False))
@@ -77,7 +77,7 @@ def model_pipeline(tests:dict,
     df_summary = pd.DataFrame(summary_rows)
 
     output_dir = path_config["output_model"]['TRADITIONAL_MODEL_PATH']
-    csv_path = os.path.join(output_dir, "results_traditional_model.csv")
+    csv_path = os.path.join(output_dir, "results_selection_traditional_model.csv")
     df_summary.to_csv(csv_path, index=False)
 
     print("Finish test")

@@ -9,6 +9,7 @@ from pathlib import Path
 def main_traditional_approach(transcript:bool=False, 
                             feature:bool=False, 
                             classification_model:bool=False,
+                            feature_selection:bool=False,
                             early_fusion:bool=False) -> str:
 
     # Transcribe audio files
@@ -36,12 +37,12 @@ def main_traditional_approach(transcript:bool=False,
             "hybrid": ["compare", "egemaps", "linguistic", "praat"],
             "pca": ["compare", "egemaps", "linguistic", "praat"]
         }
-        model_feature_selection_pipline.model_pipeline(tests)
+        model_feature_selection_pipline.model_pipeline(tests, early_fusion=early_fusion, feature_selection=feature_selection)
                 
 
 if __name__ == "__main__":
 
     main_traditional_approach(transcript=False, 
                             feature=False, 
-                            classification_model=True, early_fusion=False,
+                            classification_model=True, early_fusion=False, feature_selection=True
                             )

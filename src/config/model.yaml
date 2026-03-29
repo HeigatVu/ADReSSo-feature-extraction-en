@@ -2,3 +2,5 @@ whisper:
     MODEL_NAME: "openai/whisper-large-v3"
     BATCH_SIZE: 8
     MULTIPLE_GPU: False
+
+SEED: 42
