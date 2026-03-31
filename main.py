@@ -61,32 +61,7 @@ def main_traditional_approach(transcript:bool=False,
 
 if __name__ == "__main__":
 
-    # main_traditional_approach(transcript=False, 
-    #                         feature=False, 
-    #                         classification_model=True, early_fusion=False, feature_selection=True
-    #                         )
-
-    csv_ling_path = "/home/heigatvu/MyFile/my-project/ADReSSo-feature-extraction/output/features/adresso_linguistic_train.csv"
-    csv_egemaps_path = "/home/heigatvu/MyFile/my-project/ADReSSo-feature-extraction/output/features/adresso_egemaps_train.csv"
-    csv_compare_path = "/home/heigatvu/MyFile/my-project/ADReSSo-feature-extraction/output/features/adresso_compare_train.csv"
-    csv_praat_path = "/home/heigatvu/MyFile/my-project/ADReSSo-feature-extraction/output/features/adresso_praat_train.csv"
-
-    df_ling = pd.read_csv(csv_ling_path)
-    print(df_ling.shape)
-    df_egemaps = pd.read_csv(csv_egemaps_path)
-    print(df_egemaps.shape)
-    df_compare = pd.read_csv(csv_compare_path)
-    print(df_compare.shape)
-    df_praat = pd.read_csv(csv_praat_path)
-    print(df_praat.shape)
-
-    pkl_ling_path = "/home/heigatvu/MyFile/my-project/ADReSSo-feature-extraction/output/pkl/traditionalFeatures/adresso_linguistic_train.pkl"
-    pkl_egemaps_path = "/home/heigatvu/MyFile/my-project/ADReSSo-feature-extraction/output/pkl/traditionalFeatures/adresso_egemaps_train.pkl"
-    pkl_compare_path = "/home/heigatvu/MyFile/my-project/ADReSSo-feature-extraction/output/pkl/traditionalFeatures/adresso_compare_train.pkl"
-
-    ling_df = io.load_data(pkl_path=pkl_ling_path, meta_data=True, df_csv=df_ling)
-    egemaps_df = io.load_data(pkl_path=pkl_egemaps_path, meta_data=True, df_csv=df_egemaps)
-    compare_df = io.load_data(pkl_path=pkl_compare_path, meta_data=True, df_csv=df_compare)
-    
-    X_fused, y_ling = helperFn.fused_feature(ling_df, egemaps_df, compare_df)
-    print(X_fused.head())
+    main_traditional_approach(transcript=False, 
+                            feature=False, 
+                            classification_model=True, early_fusion=False, feature_selection=True
+                            )

@@ -98,8 +98,8 @@ def model_pipeline(tests:dict,
                     X_test, y_test = df_test.drop(columns=["label"]), df_test["label"]
 
                     # Train and Evaluate
-                    df_train_results, fitted_models = evaluation.evaluate_baseline_models(X_train, y_train, strategy=strategy, feat_type=feat_type, threshold=0.0)
-                    test_metrics = evaluation.evaluate_baseline_models_test_set(fitted_models, X_test, y_test, strategy=strategy)
+                    df_train_results, fitted_models = evaluation.evaluate_baseline_models(X_train, y_train)
+                    test_metrics = evaluation.evaluate_baseline_models_test_set(fitted_models, X_test, y_test)
 
                     print(f"\nTest Results ({feat_type} | {strategy.upper()}):")
                     print(test_metrics.to_markdown(index=False))
