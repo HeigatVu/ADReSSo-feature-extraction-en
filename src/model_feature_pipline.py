@@ -6,7 +6,7 @@ import os
 from tqdm import tqdm
 
 from src.utils import io
-from src.traditionalApproach import evaluation
+from src.traditionalApproach import evaluation, tuning
 
 def model_pipeline(tests:dict, 
                     early_fusion:bool=False, 
@@ -28,14 +28,10 @@ def model_pipeline(tests:dict,
     # Summary row
     summary_rows = []
 
-    if early_fusion:
-        
-        if feature_selection:
-            pass
-        else:
-            pass
+    if early_fusion: # Fused feature
+        pass
 
-    else:
+    else: # One feature
         if feature_selection:
             pbar = tqdm(tests.items(), desc=f"Tuning")
             for strategy, feature_sets in tests.items():
