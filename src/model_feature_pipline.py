@@ -6,7 +6,7 @@ import os
 from tqdm import tqdm
 
 from src.utils import io
-from src.traditionalApproach import evaluation, tuning
+from src.traditionalApproach import evaluation
 
 def model_pipeline(tests:dict, 
                     early_fusion:bool=False, 

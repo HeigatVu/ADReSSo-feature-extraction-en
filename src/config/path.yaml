@@ -1,4 +1,4 @@
-BASE_PATH: "/home/heigatvu/MyFile/my-project/ADReSSo-feature-extraction"
+BASE_PATH: "/home/ducvu/project/ADReSSo-feature-extraction"
 
 OUTPUT_TRADITIONAL_FEATURE_PATH: "${BASE_PATH}/output/traditionalFeatures"
 

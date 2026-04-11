@@ -1,3 +1,4 @@
+from src.utils import io
 import os
 import pandas as pd
 from pathlib import Path
@@ -10,20 +11,18 @@ from huggingface_hub import login
 from dotenv import load_dotenv
 load_dotenv()
 
-from src.utils import io
-
 
 # Transcript
-def transcribe_audio_files(audio_files:Dict[str, List[Path]], 
-                            mmse_diagnosis_path:str,
-                            csv_segment_path:str,
-                            data_type:str="train",
-                            multipleGPU: bool = False,
-                            model_name:str = "openai/whisper-large-v3", 
-                            batch_size:int = 8,
-                            device:str = "cuda" if torch.cuda.is_available() else "cpu",
-                            output_path:str = None,
-                            hf_token:str = None) -> pd.DataFrame:
+def transcribe_audio_files(audio_files: Dict[str, List[Path]],
+                           mmse_diagnosis_path: str,
+                           csv_segment_path: str,
+                           data_type: str = "train",
+                           multipleGPU: bool = False,
+                           model_name: str = "openai/whisper-large-v3",
+                           batch_size: int = 8,
+                           device: str = "cuda" if torch.cuda.is_available() else "cpu",
+                           output_path: str = None,
+                           hf_token: str = None) -> pd.DataFrame:
     """ Transcribe audio files without diarization
     """
     token = hf_token or os.environ.get("HF_TOKEN")
@@ -33,17 +32,18 @@ def transcribe_audio_files(audio_files:Dict[str, List[Path]],
     # Create output directory
     os.makedirs(output_path, exist_ok=True)
 
-    torch_type=torch.float16 if torch.cuda.is_available() else torch.float32
+    torch_type = torch.float16 if torch.cuda.is_available() else torch.float32
     if not multipleGPU:
         transcriber = pipeline(
             "automatic-speech-recognition",
             model=model_name,
             device=device,
             batch_size=batch_size,
-            torch_dtype=torch_type,
+            dtype=torch_type,
             token=token,
             model_kwargs={
-                "attn_implementation": "sdpa"  # Scaled dot-product attention (faster)
+                # Scaled dot-product attention (faster)
+                "attn_implementation": "sdpa"
             }
         )
 
@@ -58,14 +58,15 @@ def transcribe_audio_files(audio_files:Dict[str, List[Path]],
             batch_size=batch_size,
             model=model_name,
             device=device,
-            torch_dtype=torch_type,
-            device_map="auto", # Using this to multiGPU
+            dtype=torch_type,
+            device_map="auto",  # Using this to multiGPU
             token=token,
             generate_kwargs={
                 "language": "english"
             },
             model_kwargs={
-                "attn_implementation": "sdpa"  # Scaled dot-product attention (faster)
+                # Scaled dot-product attention (faster)
+                "attn_implementation": "sdpa"
             }
         )
 
@@ -92,14 +93,17 @@ def transcribe_audio_files(audio_files:Dict[str, List[Path]],
                     if "text" in output:
                         transcript = output["text"].strip()
                     elif "chunks" in output:
-                        transcript = " ".join([chunk["text"] for chunk in output["chunks"]]).strip()
+                        transcript = " ".join(
+                            [chunk["text"] for chunk in output["chunks"]]).strip()
                     else:
                         transcript = ""
                 else:
                     transcript = str(output).strip()
 
-                patient_row = df_mmse[df_mmse["adressfname"] == audio_file.stem]
-                segment_path = csv_segment_path + f"/{diagnosis}/{audio_file.stem}.csv"
+                patient_row = df_mmse[df_mmse["adressfname"]
+                                      == audio_file.stem]
+                segment_path = csv_segment_path + \
+                    f"/{diagnosis}/{audio_file.stem}.csv"
 
                 results.append({
                     "files_id": audio_file.stem,
@@ -109,7 +113,7 @@ def transcribe_audio_files(audio_files:Dict[str, List[Path]],
                     "segment_path": str(segment_path),
                     "transcript": transcript,
 
-                    })
+                })
         output_file = Path(output_path) / "adresso_transcripts_train.csv"
         pd.DataFrame(results).to_csv(output_file, index=False)
 
@@ -131,7 +135,8 @@ def transcribe_audio_files(audio_files:Dict[str, List[Path]],
                 if "text" in output:
                     transcript = output["text"].strip()
                 elif "chunks" in output:
-                    transcript = " ".join([chunk["text"] for chunk in output["chunks"]]).strip()
+                    transcript = " ".join([chunk["text"]
+                                          for chunk in output["chunks"]]).strip()
                 else:
                     transcript = ""
             else:
@@ -151,36 +156,39 @@ def transcribe_audio_files(audio_files:Dict[str, List[Path]],
                 "diagnosis": diagnosis,
                 "segment_path": str(segment_path),
                 "transcript": transcript,
-                })
+            })
         output_file = Path(output_path) / "adresso_transcripts_test.csv"
         pd.DataFrame(results).to_csv(output_file, index=False)
 
     return f"Done {data_type}"
 
+
 def transcript_pipeline() -> None:
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     # Get files
     path_config = io.load_yaml("src/config/path.yaml")
-    audio_train_files = io.get_files(path_config["train"]["AUDIO_TRAIN_PATH"], data_type="train")
-    audio_test_files = io.get_files(path_config["test"]["AUDIO_TEST_PATH"], data_type="test")
+    audio_train_files = io.get_files(
+        path_config["train"]["AUDIO_TRAIN_PATH"], data_type="train")
+    audio_test_files = io.get_files(
+        path_config["test"]["AUDIO_TEST_PATH"], data_type="test")
 
     model_config = io.load_yaml("src/config/model.yaml")
-    transcribe_audio_files(audio_train_files, 
-                                path_config["train"]["MMSE_DIAG_TRAIN_PATH"], 
-                                path_config["train"]["CSV_SEGMENT_TRAIN_PATH"], 
-                                data_type="train", 
-                                multipleGPU=model_config["whisper"]["MULTIPLE_GPU"], 
-                                model_name=model_config["whisper"]["MODEL_NAME"], 
-                                batch_size=model_config["whisper"]["BATCH_SIZE"], 
-                                device=DEVICE, 
-                                output_path=path_config["TRANSCRIPT_PATH"])
-    transcribe_audio_files(audio_test_files, 
-                                path_config["test"]["MMSE_DIAG_TEST_PATH"], 
-                                path_config["test"]["CSV_SEGMENT_TEST_PATH"], 
-                                data_type="test", 
-                                multipleGPU=model_config["whisper"]["MULTIPLE_GPU"], 
-                                model_name=model_config["whisper"]["MODEL_NAME"], 
-                                batch_size=model_config["whisper"]["BATCH_SIZE"], 
-                                device=DEVICE, 
-                                output_path=path_config["TRANSCRIPT_PATH"])
+    transcribe_audio_files(audio_train_files,
+                           path_config["train"]["MMSE_DIAG_TRAIN_PATH"],
+                           path_config["train"]["CSV_SEGMENT_TRAIN_PATH"],
+                           data_type="train",
+                           multipleGPU=model_config["whisper"]["MULTIPLE_GPU"],
+                           model_name=model_config["whisper"]["MODEL_NAME"],
+                           batch_size=model_config["whisper"]["BATCH_SIZE"],
+                           device=DEVICE,
+                           output_path=path_config["TRANSCRIPT_PATH"])
+    transcribe_audio_files(audio_test_files,
+                           path_config["test"]["MMSE_DIAG_TEST_PATH"],
+                           path_config["test"]["CSV_SEGMENT_TEST_PATH"],
+                           data_type="test",
+                           multipleGPU=model_config["whisper"]["MULTIPLE_GPU"],
+                           model_name=model_config["whisper"]["MODEL_NAME"],
+                           batch_size=model_config["whisper"]["BATCH_SIZE"],
+                           device=DEVICE,
+                           output_path=path_config["TRANSCRIPT_PATH"])
     print("Transcript pipeline done")

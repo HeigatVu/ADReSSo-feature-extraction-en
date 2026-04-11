@@ -2,23 +2,23 @@ from src.utils import io
 from src import feature_extraction_pipeline
 from src import transcription_pipeline
 from src import model_feature_pipline
-from src.utils import helperFn
 import glob
 from pathlib import Path
 
 import pandas as pd
 
 
-def main_traditional_approach(transcript:bool=False, 
-                            feature:bool=False, 
-                            classification_model:bool=False,
-                            early_fusion:bool=False) -> str:
+def main_traditional_approach(transcript: bool = False,
+                              feature: bool = False,
+                              classification_model: bool = False,
+                              early_fusion: bool = False,
+                              feature_selection: bool = False) -> None:
 
     # Transcribe audio files
     if transcript:
         transcription_pipeline.transcript_pipeline()
         print(f"finish transcript train and test set")
-    
+
     if feature:
         feature_extraction_pipeline.feature_extraction_pipeline()
         print(f"finish feature extraction train and test set")
@@ -39,29 +39,18 @@ def main_traditional_approach(transcript:bool=False,
             "hybrid": ["compare", "egemaps", "linguistic", "praat"],
             "pca": ["compare", "egemaps", "linguistic", "praat"]
         }
-        # Raw feature model
-        model_feature_pipline.model_pipeline(tests, 
-                                            early_fusion=early_fusion, 
-                                            feature_selection=False, 
-                                            threshold=threshold)
-
-        # Selected feature model
-        model_feature_pipline.model_pipeline(tests, 
-                                            early_fusion=early_fusion, 
-                                            feature_selection=True, 
-                                            threshold=threshold)
-
-        # # Selected feature model removing correlated features threshold 0.9
-        # model_feature_pipline.model_pipeline(tests, 
-        #                                     early_fusion=early_fusion, 
-        #                                     feature_selection=True, 
-        #                                     threshold=0.9)
+        # Run model pipeline with selected feature selection setting
+        model_feature_pipline.model_pipeline(tests,
+                                             early_fusion=early_fusion,
+                                             feature_selection=feature_selection,
+                                             threshold=0.9)
 
         # Merged feature
 
+
 if __name__ == "__main__":
 
-    main_traditional_approach(transcript=False, 
-                            feature=False, 
-                            classification_model=True, early_fusion=False, feature_selection=True
-                            )
+    main_traditional_approach(transcript=True,
+                              feature=True,
+                              classification_model=True, early_fusion=False, feature_selection=True
+                              )
