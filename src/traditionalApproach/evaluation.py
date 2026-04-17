@@ -1,8 +1,8 @@
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn import set_config
-set_config(transform_output="pandas")
+# from sklearn import set_config
+# set_config(transform_output="pandas")
 import pandas as pd
 
 from src.traditionalApproach import tuning, modelsML, helperFn
@@ -54,7 +54,7 @@ def evaluate_baseline_models(X_train:pd.DataFrame,
             "Best_Params": str(random_search.best_params_)
         })
 
-    df_results = pd.DataFrame(results).sort_values("Best_CV_accuracy", ascending=False)
+    df_results = pd.DataFrame(results).sort_values("Best_CV_Accuracy", ascending=False)
     print(df_results[
         ["Model", "Best_Params", "Best_CV_Accuracy"]
     ].to_markdown(index=False))
@@ -92,7 +92,7 @@ def evaluate_baseline_models_test_set(best_estimators:dict,
 def evaluate_selection_models(X_train:pd.DataFrame,
                         y_train:pd.Series,
                         strategy:str="hybrid",
-                        threshold:float=0.0,
+                        correlation_threshold:float=0.0,
                         n_iter:int=20, 
                         cv:int=10) -> tuple[pd.DataFrame, dict]:
     """ Runs RandomizedSearchCV across all models for a given dataset and feature selection strategy.
@@ -116,7 +116,7 @@ def evaluate_selection_models(X_train:pd.DataFrame,
 
     for name, clf in models.items():
 
-        pipeline, selector_grid = tuning.build_pipeline(clf, strategy, threshold)
+        pipeline, selector_grid = tuning.build_pipeline(clf, strategy, correlation_threshold)
 
         # Merged grid for testing
         merged_grid = {**cls_params[name], **selector_grid}
@@ -151,9 +151,9 @@ def evaluate_selection_models(X_train:pd.DataFrame,
             "Best_Params": str(cls_best),
         })
 
-    df_results = pd.DataFrame(results).sort_values("Best_CV_accuracy", ascending=False)
+    df_results = pd.DataFrame(results).sort_values("Best_CV_Accuracy", ascending=False)
     print(df_results[
-        ["Model", "Selector_Param", "Best_Selector_Value", "Best_CV_accuracy"]
+        ["Model", "Selector_Param", "Best_Selector_Value", "Best_CV_Accuracy"]
     ].to_markdown(index=False))
 
     return df_results, best_estimators

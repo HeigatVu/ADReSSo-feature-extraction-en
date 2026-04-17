@@ -6,6 +6,7 @@ from sklearn.metrics import (
     recall_score,
     accuracy_score,
     roc_auc_score,
+    make_scorer,
 )
 from sklearn.preprocessing import StandardScaler
 import pandas as pd

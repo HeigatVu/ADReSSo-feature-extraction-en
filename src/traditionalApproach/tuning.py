@@ -78,14 +78,14 @@ def hybrid_selector_hyperparameter() -> dict:
 
     return hybrid_params
 
-def build_pipeline(clf:str="lr", strategy:str="hybrid", threshold:float=0.0) -> tuple:
+def build_pipeline(clf:str="lr", strategy:str="hybrid", correlation_threshold:float=0.0) -> tuple:
     """ Build pipeline
     """
     if strategy == "pca":
         selector_step = ("pca", featureSelection.PCASelector())
         selector_grid = pca_selector_hyperparameters()
     elif strategy == "hybrid":
-        selector_step = ("feat_sel", featureSelection.HybridFeatureSelector(threshold=threshold))
+        selector_step = ("feat_sel", featureSelection.HybridFeatureSelector(correlation_threshold=correlation_threshold))
         selector_grid = hybrid_selector_hyperparameter()
     
     pipeline = Pipeline([

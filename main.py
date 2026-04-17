@@ -40,17 +40,27 @@ def main_traditional_approach(transcript: bool = False,
             "pca": ["compare", "egemaps", "linguistic", "praat"]
         }
         # Run model pipeline with selected feature selection setting
+        # Without correlation_threshold
         model_feature_pipline.model_pipeline(tests,
                                              early_fusion=early_fusion,
                                              feature_selection=feature_selection,
-                                             threshold=0.9)
+                                             correlation_threshold=0.0)
+
+        # Correlation_threshold
+        model_feature_pipline.model_pipeline(tests,
+                                             early_fusion=early_fusion,
+                                             feature_selection=feature_selection,
+                                             correlation_threshold=0.9)
+        # Raw feature
+        model_feature_pipline.model_pipeline(tests,
+                                             early_fusion=early_fusion,
+                                             feature_selection=False,
+                                             correlation_threshold=None)
 
         # Merged feature
-
-
 if __name__ == "__main__":
 
-    main_traditional_approach(transcript=True,
-                              feature=True,
+    main_traditional_approach(transcript=False,
+                              feature=False,
                               classification_model=True, early_fusion=False, feature_selection=True
                               )

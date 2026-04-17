@@ -1,17 +1,17 @@
-import pandas as pd
-from sklearn import set_config
-set_config(transform_output="pandas")
-from pathlib import Path
-import os
-from tqdm import tqdm
-
-from src.utils import io
 from src.traditionalApproach import evaluation
+from src.utils import io
+from tqdm import tqdm
+import os
+from pathlib import Path
+import pandas as pd
+# from sklearn import set_config
+# set_config(transform_output="pandas")
 
-def model_pipeline(tests:dict, 
-                    early_fusion:bool=False, 
-                    feature_selection:bool=False,
-                    threshold:float=0.0) -> None:
+
+def model_pipeline(tests: dict,
+                   early_fusion: bool = False,
+                   feature_selection: bool = False,
+                   correlation_threshold: float = 0.0) -> None:
 
     FEATURE_DISPLAY_NAMES = {
         "compare": "ComParE 2016",
@@ -19,7 +19,7 @@ def model_pipeline(tests:dict,
         "linguistic": "Linguistic Features",
         "praat": "Praat"
     }
-    
+
     path_config = io.load_yaml("src/config/path.yaml")
     # Save result
     save_result = f"{path_config["output_model"]['TRADITIONAL_MODEL_PATH']}/adresso.csv"
@@ -28,32 +28,42 @@ def model_pipeline(tests:dict,
     # Summary row
     summary_rows = []
 
-    if early_fusion: # Fused feature
+    if early_fusion:  # Fused feature
         pass
 
-    else: # One feature
+    else:  # One feature
         if feature_selection:
             pbar = tqdm(tests.items(), desc=f"Tuning")
             for strategy, feature_sets in tests.items():
                 pbar.set_description(f"Tuning {strategy.upper()}")
                 pbar_feat = tqdm(feature_sets, desc=f"Feature Type")
                 for feat_type in pbar_feat:
-                    pbar_feat.set_description(f"Feature Type {feat_type.upper()}")
+                    pbar_feat.set_description(
+                        f"Feature Type {feat_type.upper()}")
                     # Train
-                    df_csv_tr = pd.read_csv(f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{feat_type}_train.csv")
-                    df_train = io.load_data(f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{feat_type}_train.pkl", df_csv=df_csv_tr)
-                    X_train, y_train = df_train.drop(columns=["label"]), df_train["label"]
-                
+                    df_csv_tr = pd.read_csv(
+                        f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{feat_type}_train.csv")
+                    df_train = io.load_data(
+                        f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{feat_type}_train.pkl", df_csv=df_csv_tr)
+                    X_train, y_train = df_train.drop(
+                        columns=["label"]), df_train["label"]
+
                     # Load Test
-                    df_csv_test = pd.read_csv(f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{feat_type}_test.csv")
-                    df_test = io.load_data(f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{feat_type}_test.pkl", df_csv=df_csv_test)
-                    X_test, y_test = df_test.drop(columns=["label"]), df_test["label"]
+                    df_csv_test = pd.read_csv(
+                        f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{feat_type}_test.csv")
+                    df_test = io.load_data(
+                        f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{feat_type}_test.pkl", df_csv=df_csv_test)
+                    X_test, y_test = df_test.drop(
+                        columns=["label"]), df_test["label"]
 
                     # Train and Evaluate
-                    df_train_results, fitted_models = evaluation.evaluate_selection_models(X_train, y_train, strategy=strategy, feat_type=feat_type, threshold=threshold)
-                    test_metrics = evaluation.evaluate_selection_test_set(fitted_models, X_test, y_test, strategy=strategy, threshold=threshold)
+                    df_train_results, fitted_models = evaluation.evaluate_selection_models(
+                        X_train, y_train, strategy=strategy, correlation_threshold=correlation_threshold)
+                    test_metrics = evaluation.evaluate_selection_test_set(
+                        fitted_models, X_test, y_test, strategy=strategy)
 
-                    print(f"\nTest Results ({feat_type} | {strategy.upper()}):")
+                    print(
+                        f"\nTest Results ({feat_type} | {strategy.upper()}):")
                     print(test_metrics.to_markdown(index=False))
 
                     best_row = test_metrics.iloc[0]
@@ -74,7 +84,8 @@ def model_pipeline(tests:dict,
             df_summary = pd.DataFrame(summary_rows)
 
             output_dir = path_config["output_model"]['TRADITIONAL_MODEL_PATH']
-            csv_path = os.path.join(output_dir, "results_selection_traditional_model.csv")
+            csv_path = os.path.join(
+                output_dir, "results_selection_traditional_model.csv")
             df_summary.to_csv(csv_path, index=False)
         else:
             pbar = tqdm(tests.items(), desc=f"Tuning")
@@ -82,22 +93,32 @@ def model_pipeline(tests:dict,
                 pbar.set_description(f"Tuning {strategy.upper()}")
                 pbar_feat = tqdm(feature_sets, desc=f"Feature Type")
                 for feat_type in pbar_feat:
-                    pbar_feat.set_description(f"Feature Type {feat_type.upper()}")
+                    pbar_feat.set_description(
+                        f"Feature Type {feat_type.upper()}")
                     # Train
-                    df_csv_tr = pd.read_csv(f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{feat_type}_train.csv")
-                    df_train = io.load_data(f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{feat_type}_train.pkl", df_csv=df_csv_tr)
-                    X_train, y_train = df_train.drop(columns=["label"]), df_train["label"]
-                
+                    df_csv_tr = pd.read_csv(
+                        f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{feat_type}_train.csv")
+                    df_train = io.load_data(
+                        f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{feat_type}_train.pkl", df_csv=df_csv_tr)
+                    X_train, y_train = df_train.drop(
+                        columns=["label"]), df_train["label"]
+
                     # Load Test
-                    df_csv_test = pd.read_csv(f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{feat_type}_test.csv")
-                    df_test = io.load_data(f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{feat_type}_test.pkl", df_csv=df_csv_test)
-                    X_test, y_test = df_test.drop(columns=["label"]), df_test["label"]
+                    df_csv_test = pd.read_csv(
+                        f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{feat_type}_test.csv")
+                    df_test = io.load_data(
+                        f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{feat_type}_test.pkl", df_csv=df_csv_test)
+                    X_test, y_test = df_test.drop(
+                        columns=["label"]), df_test["label"]
 
                     # Train and Evaluate
-                    df_train_results, fitted_models = evaluation.evaluate_baseline_models(X_train, y_train)
-                    test_metrics = evaluation.evaluate_baseline_models_test_set(fitted_models, X_test, y_test)
+                    df_train_results, fitted_models = evaluation.evaluate_baseline_models(
+                        X_train, y_train)
+                    test_metrics = evaluation.evaluate_baseline_models_test_set(
+                        fitted_models, X_test, y_test)
 
-                    print(f"\nTest Results ({feat_type} | {strategy.upper()}):")
+                    print(
+                        f"\nTest Results ({feat_type} | {strategy.upper()}):")
                     print(test_metrics.to_markdown(index=False))
 
                     best_row = test_metrics.iloc[0]
@@ -118,8 +139,8 @@ def model_pipeline(tests:dict,
                 df_summary = pd.DataFrame(summary_rows)
                 # Save CSV
                 output_dir = path_config["output_model"]['TRADITIONAL_MODEL_PATH']
-                csv_path = os.path.join(output_dir, "results_raw_traditional_model.csv")
+                csv_path = os.path.join(
+                    output_dir, "results_raw_traditional_model.csv")
                 df_summary.to_csv(csv_path, index=False)
-
 
     print("Finish test")
