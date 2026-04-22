@@ -1,5 +1,5 @@
 # Logs
-*.log
+log/
 
 # Build output
 data/
@@ -13,3 +13,6 @@ __pycache__
 
 # environment variables
 .env
+
+# test
+tests/

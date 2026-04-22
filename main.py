@@ -35,29 +35,40 @@ def main_traditional_approach(transcript: bool = False,
 
     if classification_model:
         # Define test configurations
-        tests = {
+        # Run model pipeline with selected feature selection setting
+        # Without correlation_threshold
+        tests_hybrid_pca_without_corr = {
             "hybrid": ["compare", "egemaps", "linguistic", "praat"],
             "pca": ["compare", "egemaps", "linguistic", "praat"]
         }
-        # Run model pipeline with selected feature selection setting
-        # Without correlation_threshold
-        model_feature_pipline.model_pipeline(tests,
+        model_feature_pipline.model_pipeline(tests_hybrid_pca_without_corr,
                                              early_fusion=early_fusion,
                                              feature_selection=feature_selection,
-                                             correlation_threshold=0.0)
+                                             correlation_threshold=0.0,
+                                             output_csv_name="hybrid_pca_withtout_corr")
 
         # Correlation_threshold
-        model_feature_pipline.model_pipeline(tests,
+        tests_hybrid_corr = {
+            "hybrid": ["compare", "egemaps", "linguistic", "praat"],
+        }
+        model_feature_pipline.model_pipeline(tests_hybrid_corr,
                                              early_fusion=early_fusion,
                                              feature_selection=feature_selection,
-                                             correlation_threshold=0.9)
+                                             correlation_threshold=0.9,
+                                             output_csv_name="hybrid_corr")
         # Raw feature
-        model_feature_pipline.model_pipeline(tests,
+        tests_raw_features = {
+            "": ["compare", "egemaps", "linguistic", "praat"],
+        }
+        model_feature_pipline.model_pipeline(tests_raw_features,
                                              early_fusion=early_fusion,
                                              feature_selection=False,
-                                             correlation_threshold=None)
+                                             correlation_threshold=None,
+                                             output_csv_name="raw")
 
         # Merged feature
+
+
 if __name__ == "__main__":
 
     main_traditional_approach(transcript=False,

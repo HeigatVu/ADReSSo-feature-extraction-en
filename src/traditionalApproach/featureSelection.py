@@ -46,6 +46,9 @@ class HybridFeatureSelector(BaseEstimator, TransformerMixin):
         # Normalise input to DataFrame so mrmr_classif can use column names
         df = pd.DataFrame(X) if isinstance(X, np.ndarray) else X.copy()
         df.columns = df.columns.astype(str)
+        df = df.reset_index(drop=True)
+        if isinstance(y, pd.Series):
+            y = y.reset_index(drop=True)
 
         # 1. ANOVA
         self._anova = SelectKBest(f_classif, k=self.k).fit(df, y)
