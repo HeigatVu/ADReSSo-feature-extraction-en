@@ -89,7 +89,7 @@ def model_pipeline_one_feature(tests: dict,
     print(f"\nFinish {feat_type} results saved to {csv_path}")
 
 
-def late_fusion_pipeline(acoustic_type: str,
+def late_fusion_pipeline(acoustic_list: list,
                          linguistic_type: str,
                          strategy: str = "hybrid",
                          correlation_threshold: float = 0.0,
@@ -106,27 +106,12 @@ def late_fusion_pipeline(acoustic_type: str,
 
     path_config = io.load_yaml("src/config/path.yaml")
 
-    # 1. Load Acoustic Data
-    df_csv_acoustic_train = pd.read_csv(
-        f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{acoustic_type}_train.csv")
-    df_acoustic_train = io.load_data(
-        f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{acoustic_type}_train.pkl", df_csv=df_csv_acoustic_train)
-    X_train_acoustic, y_train = df_acoustic_train.drop(
-        columns=["label"]), df_acoustic_train["label"]
-
-    df_csv_acoustic_test = pd.read_csv(
-        f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{acoustic_type}_test.csv")
-    df_acoustic_test = io.load_data(
-        f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{acoustic_type}_test.pkl", df_csv=df_csv_acoustic_test)
-    X_test_acoustic, y_test = df_acoustic_test.drop(
-        columns=["label"]), df_acoustic_test["label"]
-
     # 2. Load Linguistic Data
     df_csv_ling_train = pd.read_csv(
         f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{linguistic_type}_train.csv")
     df_ling_train = io.load_data(
         f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{linguistic_type}_train.pkl", df_csv=df_csv_ling_train)
-    X_train_ling = df_ling_train.drop(columns=["label"])
+    X_train_ling, y_train = df_ling_train.drop(columns=["label"]), df_ling_train["label"]
 
     df_csv_ling_test = pd.read_csv(
         f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{linguistic_type}_test.csv")
@@ -134,56 +119,79 @@ def late_fusion_pipeline(acoustic_type: str,
         f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{linguistic_type}_test.pkl", df_csv=df_csv_ling_test)
     X_test_ling = df_ling_test.drop(columns=["label"])
 
-    # 3. Train and Evaluate Independent Models
-    df_acoustic_ressult, fitted_models_acoustic = evaluation.evaluate_selection_models(
-        X_train_acoustic, y_train, strategy=strategy, correlation_threshold=correlation_threshold)
-
+    # Train linguistic model once (same data for all acoustic types)
     df_ling_result, fitted_models_ling = evaluation.evaluate_selection_models(
         X_train_ling, y_train, strategy=strategy, correlation_threshold=correlation_threshold)
 
-    # 4. Late Fusion (Average predictions)
     summary_rows = []
-    for name in fitted_models_acoustic.keys():
-        if name not in fitted_models_ling:
-            continue
 
-        best_pipeline_acoustic = fitted_models_acoustic[name].best_estimator_
-        best_pipeline_ling = fitted_models_ling[name].best_estimator_
+    pbar_feat = tqdm(acoustic_list, desc=f"Feature Acoustic Type")
+    for acoustic_type in pbar_feat:
+        pbar_feat.set_description(
+            f"Feature Type {acoustic_type.upper()}")
 
-        # Get probabilities for test set
-        y_proba_acoustic = best_pipeline_acoustic.predict_proba(X_test_acoustic)[
-            :, 1]
-        y_proba_ling = best_pipeline_ling.predict_proba(X_test_ling)[:, 1]
+        # 1. Load Acoustic Data
+        df_csv_acoustic_train = pd.read_csv(
+            f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{acoustic_type}_train.csv")
+        df_acoustic_train = io.load_data(
+            f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{acoustic_type}_train.pkl", df_csv=df_csv_acoustic_train)
+        X_train_acoustic, y_train_acoustic = df_acoustic_train.drop(
+            columns=["label"]), df_acoustic_train["label"]
 
-        # Late fusion (average)
-        y_proba_fusion = (y_proba_acoustic + y_proba_ling) / 2.0
-        y_pred_fusion = (y_proba_fusion >= 0.5).astype(int)
+        df_csv_acoustic_test = pd.read_csv(
+            f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{acoustic_type}_test.csv")
+        df_acoustic_test = io.load_data(
+            f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{acoustic_type}_test.pkl", df_csv=df_csv_acoustic_test)
+        X_test_acoustic, y_test = df_acoustic_test.drop(
+            columns=["label"]), df_acoustic_test["label"]
 
-        metric_results = helperFn.calculate_metrics(
-            y_test.values, y_pred_fusion, y_proba_fusion)
+        # 3. Train and Evaluate Acoustic Models
+        df_acoustic_result, fitted_models_acoustic = evaluation.evaluate_selection_models(
+            X_train_acoustic, y_train_acoustic, strategy=strategy, correlation_threshold=correlation_threshold)
 
-        summary_rows.append({
-            "Feature": f"{FEATURE_DISPLAY_NAMES.get(acoustic_type, acoustic_type)} + {FEATURE_DISPLAY_NAMES.get(linguistic_type, linguistic_type)}",
-            "Strategy": strategy.upper(),
-            "Model": name,
-            "Sensitivity": round(metric_results["sensitivity"], 4),
-            "Specificity": round(metric_results["specificity"], 4),
-            "ROC-AUC": round(metric_results["roc-auc"], 4),
-            "Accuracy": round(metric_results["accuracy"], 4),
-            "Fusion_Strategy": "Average"
-        })
+        # 4. Late Fusion (Average predictions)
+        for name in fitted_models_acoustic.keys():
+            if name not in fitted_models_ling:
+                continue
 
-    df_summary = pd.DataFrame(summary_rows)sort_values(
+            best_pipeline_acoustic = fitted_models_acoustic[name].best_estimator_
+            best_pipeline_ling = fitted_models_ling[name].best_estimator_
+
+            # Get probabilities for test set
+            y_proba_acoustic = best_pipeline_acoustic.predict_proba(X_test_acoustic)[
+                :, 1]
+            y_proba_ling = best_pipeline_ling.predict_proba(X_test_ling)[:, 1]
+
+            # Late fusion (average)
+            y_proba_fusion = (y_proba_acoustic + y_proba_ling) / 2.0
+            y_pred_fusion = (y_proba_fusion >= 0.5).astype(int)
+
+            metric_results = helperFn.calculate_metrics(
+                y_test.values, y_pred_fusion, y_proba_fusion)
+
+            summary_rows.append({
+                "Feature": f"{FEATURE_DISPLAY_NAMES.get(acoustic_type, acoustic_type)} + {FEATURE_DISPLAY_NAMES.get(linguistic_type, linguistic_type)}",
+                "Strategy": strategy.upper(),
+                "Model": name,
+                "Sensitivity": round(metric_results["sensitivity"], 4),
+                "Specificity": round(metric_results["specificity"], 4),
+                "ROC-AUC": round(metric_results["roc-auc"], 4),
+                "Accuracy": round(metric_results["accuracy"], 4),
+                "Fusion_Strategy": "Average"
+            })
+            tqdm.write(
+                f"Test Results ({acoustic_type} {linguistic_type} | {strategy.upper()}\n)"
+                f"Acoustic: {name} | Fusion: average"
+            )
+
+    df_summary = pd.DataFrame(summary_rows).sort_values(
         by="Accuracy", ascending=False)
     # Save CSV
     output_dir = path_config["output_model"]["TRADITIONAL_MODEL_PATH"]
     csv_path = os.path.join(
         output_dir, f"{output_csv_name}.csv")
     df_summary.to_csv(csv_path, index=False)
-    print(f"\nEarly fusion Results saved to {csv_path}")
-    output_dir = path_config["output_model"]["TRADITIONAL_MODEL_PATH"]
-    csv_path = os.path.join(output_dir, f"{output_csv_name}.csv")
-    df_summary.to_csv(csv_path, index=False)
+    print(f"\nLate fusion Results saved to {csv_path}")
 
 
 def early_fusion_pipeline(acoustic_list: list,

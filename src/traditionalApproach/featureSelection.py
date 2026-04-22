@@ -73,15 +73,12 @@ class HybridFeatureSelector(BaseEstimator, TransformerMixin):
             rf, max_features=self.k, threshold=-np.inf).fit(df, y)
         rf_cols = set(df.columns[self._rf_sel.get_support()])
 
-        # 3. MRMR (difference & quotient)
-        ranking_diff = _get_cached_mrmr(df, y, k_max=100)
-        mrmr_diff = set(ranking_diff[:self.k])
-        ranking_quot = _get_cached_mrmr(
-            df, y, k_max=100, relevance="f", redundancy="c")
-        mrmr_quot = set(ranking_quot[:self.k])
+        # 3. MRMR (correlation-based redundancy)
+        ranking_mrmr = _get_cached_mrmr(df, y, k_max=100)
+        mrmr_cols = set(ranking_mrmr[:self.k])
 
         # Union of all methods
-        merged = anova_cols | rf_cols | mrmr_diff | mrmr_quot
+        merged = anova_cols | rf_cols | mrmr_cols
 
         if self.correlation_threshold > 0.0:
             # Adding to remove correrated features
@@ -99,8 +96,6 @@ class HybridFeatureSelector(BaseEstimator, TransformerMixin):
         self.selected_features_ = sorted(merged)
         self.selected_indices_ = [df.columns.get_loc(
             c) for c in self.selected_features_]
-
-        print(f"Selected features: {self.selected_features_}")
         return self
 
     def transform(self, X):
