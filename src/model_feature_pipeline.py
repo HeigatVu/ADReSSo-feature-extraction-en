@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 from src.traditionalApproach import helperFn
 import numpy as np
-from src.traditionalApproach.featureSelection import PCASelector, HybridFeatureSelector
+from src.traditionalApproach.featureSelection import PCASelector, HybridFeatureSelector, IntersectionFeatureSelector
 
 
 def model_pipeline_one_feature(tests: dict,
@@ -111,7 +111,8 @@ def late_fusion_pipeline(acoustic_list: list,
         f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{linguistic_type}_train.csv")
     df_ling_train = io.load_data(
         f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{linguistic_type}_train.pkl", df_csv=df_csv_ling_train)
-    X_train_ling, y_train = df_ling_train.drop(columns=["label"]), df_ling_train["label"]
+    X_train_ling, y_train = df_ling_train.drop(
+        columns=["label"]), df_ling_train["label"]
 
     df_csv_ling_test = pd.read_csv(
         f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{linguistic_type}_test.csv")
@@ -142,6 +143,8 @@ def late_fusion_pipeline(acoustic_list: list,
             f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{acoustic_type}_test.csv")
         df_acoustic_test = io.load_data(
             f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{acoustic_type}_test.pkl", df_csv=df_csv_acoustic_test)
+        assert (df_acoustic_test.index == df_ling_test.index).all(
+        ), "Row order mismatch between acoustic and linguistic test sets"
         X_test_acoustic, y_test = df_acoustic_test.drop(
             columns=["label"]), df_acoustic_test["label"]
 
@@ -241,6 +244,8 @@ def early_fusion_pipeline(acoustic_list: list,
             f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{acoustic_type}_test.csv")
         df_acoustic_test = io.load_data(
             f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{acoustic_type}_test.pkl", df_csv=df_csv_acoustic_test)
+        assert (df_acoustic_test.index == df_ling_test.index).all(
+        ), "Row order mismatch between acoustic and linguistic test sets"
         X_test_acoustic, y_test = df_acoustic_test.drop(
             columns=["label"]), df_acoustic_test["label"]
 
@@ -279,3 +284,136 @@ def early_fusion_pipeline(acoustic_list: list,
         output_dir, f"{output_csv_name}.csv")
     df_summary.to_csv(csv_path, index=False)
     print(f"\nEarly fusion Results saved to {csv_path}")
+
+
+def balanced_early_fusion_pipeline(
+    acoustic_list: list,
+    linguistic_type: str,
+    strategy: str = "intersection",  # "intersection" or "pca"
+    k: int = 10,
+    correlation_threshold: float = 0.0,
+    output_csv_name: str = "results_balanced_early_fusion"
+) -> None:
+    """ Balanced early fusion: reduces each modality independently to k features, 
+        concatenates them (2k total), and then evaluates.
+    """
+    FEATURE_DISPLAY_NAMES = {
+        "compare": "ComParE 2016",
+        "egemaps": "eGeMAPS",
+        "linguistic": "Linguistic Features",
+        "praat": "Praat"
+    }
+    summary_rows = []
+
+    path_config = io.load_yaml("src/config/path.yaml")
+
+    # 1. Load Linguistic Data
+    df_csv_ling_train = pd.read_csv(
+        f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{linguistic_type}_train.csv")
+    df_ling_train = io.load_data(
+        f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{linguistic_type}_train.pkl", df_csv=df_csv_ling_train)
+    X_train_ling, y_train = df_ling_train.drop(
+        columns=["label"]), df_ling_train["label"]
+
+    df_csv_ling_test = pd.read_csv(
+        f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{linguistic_type}_test.csv")
+    df_ling_test = io.load_data(
+        f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{linguistic_type}_test.pkl", df_csv=df_csv_ling_test)
+    X_test_ling, y_test = df_ling_test.drop(
+        columns=["label"]), df_ling_test["label"]
+
+    pbar_feat = tqdm(acoustic_list, desc=f"Balanced Early Fusion")
+    for acoustic_type in pbar_feat:
+        pbar_feat.set_description(f"Type {acoustic_type.upper()}")
+
+        # 2. Load Acoustic Data
+        df_csv_acoustic_train = pd.read_csv(
+            f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{acoustic_type}_train.csv")
+        df_acoustic_train = io.load_data(
+            f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{acoustic_type}_train.pkl", df_csv=df_csv_acoustic_train)
+        X_train_acoustic = df_acoustic_train.drop(columns=["label"])
+
+        df_csv_acoustic_test = pd.read_csv(
+            f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{acoustic_type}_test.csv")
+        df_acoustic_test = io.load_data(
+            f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{acoustic_type}_test.pkl", df_csv=df_csv_acoustic_test)
+        assert (df_acoustic_test.index == df_ling_test.index).all(
+        ), "Row order mismatch between acoustic and linguistic test sets"
+        X_test_acoustic = df_acoustic_test.drop(columns=["label"])
+
+        # 3. Independent Feature Selection per modality
+        if strategy == "intersection":
+            selector_acoustic = IntersectionFeatureSelector(k=k)
+            selector_ling = IntersectionFeatureSelector(k=k)
+        elif strategy == "pca":
+            # Add this check:
+            if correlation_threshold > 0.0:
+                raise ValueError(
+                    "Correlation thresholding is not supported for PCA strategy as components are already orthogonal.")
+            selector_acoustic = PCASelector(n_components=k)
+            selector_ling = PCASelector(n_components=k)
+        else:
+            raise ValueError(f"Unknown strategy: {strategy}")
+
+        # Fit and transform training data
+        X_train_acoustic_red = selector_acoustic.fit_transform(
+            X_train_acoustic, y_train)
+        X_train_ling_red = selector_ling.fit_transform(X_train_ling, y_train)
+
+        # Transform test data
+        X_test_acoustic_red = selector_acoustic.transform(X_test_acoustic)
+        X_test_ling_red = selector_ling.transform(X_test_ling)
+
+        # 4. Concatenate (exactly k acoustic + k linguistic = 2k features)
+        X_train_combined = np.concatenate(
+            [X_train_acoustic_red, X_train_ling_red], axis=1)
+        X_test_combined = np.concatenate(
+            [X_test_acoustic_red, X_test_ling_red], axis=1)
+
+        # Optional: Correlation threshold (only for intersection)
+        if strategy == "intersection" and correlation_threshold > 0.0:
+            df_combined = pd.DataFrame(X_train_combined)
+            corr_matrix = df_combined.corr().abs()
+            upper = corr_matrix.where(
+                np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)
+            )
+            redundant_indices = []
+            for col in upper.columns:
+                if any(upper[col] >= correlation_threshold):
+                    redundant_indices.append(col)
+
+            # Remove from both train and test
+            remaining_indices = [i for i in range(
+                X_train_combined.shape[1]) if i not in redundant_indices]
+            X_train_combined = X_train_combined[:, remaining_indices]
+            X_test_combined = X_test_combined[:, remaining_indices]
+
+        # 5. Evaluate (using baseline models as features are already selected)
+        df_train_results, fitted_models = evaluation.evaluate_baseline_models(
+            X_train_combined, y_train)
+        test_metrics = evaluation.evaluate_baseline_models_test_set(
+            fitted_models, X_test_combined, y_test)
+
+        # 6. Collect Summary
+        best_row = test_metrics.iloc[0]
+        summary_rows.append({
+            "Feature": f"{FEATURE_DISPLAY_NAMES.get(acoustic_type, acoustic_type)} + {FEATURE_DISPLAY_NAMES.get(linguistic_type, linguistic_type)}",
+            "Strategy": f"BALANCED_{strategy.upper()}",
+            "Best_Model": best_row["Model"],
+            "Sensitivity": best_row["Sensitivity"],
+            "Specificity": best_row["Specificity"],
+            "ROC-AUC": best_row["ROC-AUC"],
+            "Accuracy": best_row["Accuracy"],
+        })
+        tqdm.write(
+            f"Test Results ({acoustic_type} {linguistic_type} | BALANCED_{strategy.upper()}\n"
+            f"{test_metrics.to_markdown(index=False)}"
+        )
+
+    # 7. Save results
+    df_summary = pd.DataFrame(summary_rows).sort_values(
+        by="Accuracy", ascending=False)
+    output_dir = path_config["output_model"]["TRADITIONAL_MODEL_PATH"]
+    csv_path = os.path.join(output_dir, f"{output_csv_name}.csv")
+    df_summary.to_csv(csv_path, index=False)
+    print(f"\nBalanced early fusion results saved to {csv_path}")

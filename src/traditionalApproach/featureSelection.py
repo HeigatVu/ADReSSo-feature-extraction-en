@@ -102,3 +102,81 @@ class HybridFeatureSelector(BaseEstimator, TransformerMixin):
         if isinstance(X, pd.DataFrame):
             return X.iloc[:, self.selected_indices_].values
         return X[:, self.selected_indices_]
+
+
+class IntersectionFeatureSelector(BaseEstimator, TransformerMixin):
+    """ Select features based on intersection of top-k candidates from ANOVA, Random Forest, and mRMR.
+    """
+
+    def __init__(self, k: int = 10, k_internal: int = 50, random_state: int = seed):
+        self.k = k
+        self.k_internal = k_internal
+        self.random_state = random_state
+
+    def fit(self, X, y=None):
+        # Normalise input to DataFrame so mrmr_classif can use column names
+        df = pd.DataFrame(X) if isinstance(X, np.ndarray) else X.copy()
+        df.columns = df.columns.astype(str)
+        df = df.reset_index(drop=True)
+        if isinstance(y, pd.Series):
+            y = y.reset_index(drop=True)
+
+        # Ensure k_internal doesn't exceed number of features
+        n_features = df.shape[1]
+        actual_k_internal = min(self.k_internal, n_features)
+
+        # 1. ANOVA candidates
+        anova = SelectKBest(f_classif, k=actual_k_internal).fit(df, y)
+        anova_cols = df.columns[anova.get_support()].tolist()
+
+        # 2. Random Forest candidates
+        rf = RandomForestClassifier(
+            n_estimators=100, random_state=self.random_state, n_jobs=1)
+        rf_sel = SelectFromModel(
+            rf, max_features=actual_k_internal, threshold=-np.inf).fit(df, y)
+        rf_cols = df.columns[rf_sel.get_support()].tolist()
+
+        # 3. MRMR candidates (ranking_mrmr is ordered by importance)
+        ranking_mrmr = _get_cached_mrmr(df, y, k_max=max(100, self.k_internal))
+        mrmr_cols = ranking_mrmr[:actual_k_internal]
+        mrmr_full_ranking = {feat: i for i, feat in enumerate(ranking_mrmr)}
+
+        # Voting logic: count how many methods selected each candidate
+        votes = {}
+        for col in set(anova_cols + rf_cols + mrmr_cols):
+            count = 0
+            if col in anova_cols:
+                count += 1
+            if col in rf_cols:
+                count += 1
+            if col in mrmr_cols:
+                count += 1
+            votes[col] = count
+
+        # Filter to features with at least 2 votes
+        candidates = [col for col, count in votes.items() if count >= 2]
+
+        # Sort by: vote count (descending), then mRMR rank (ascending) as tiebreaker
+        candidates.sort(
+            key=lambda c: (-votes[c], mrmr_full_ranking.get(c, 999)))
+
+        selected = candidates[:self.k]
+
+        # Padding logic: if fewer than k features met the intersection criteria,
+        # fill the remaining slots with the next best features from mRMR ranking
+        if len(selected) < self.k:
+            for col in ranking_mrmr:
+                if col not in selected:
+                    selected.append(col)
+                if len(selected) == self.k:
+                    break
+
+        self.selected_features_ = selected
+        self.selected_indices_ = [df.columns.get_loc(
+            c) for c in self.selected_features_]
+        return self
+
+    def transform(self, X):
+        if isinstance(X, pd.DataFrame):
+            return X.iloc[:, self.selected_indices_].values
+        return X[:, self.selected_indices_]
