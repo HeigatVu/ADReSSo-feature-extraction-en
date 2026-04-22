@@ -9,21 +9,32 @@ from sklearn.feature_selection import SelectKBest, SelectFromModel, f_classif
 from mrmr import mrmr_classif
 
 from src.utils import io
+import joblib
+
+# Initialize cache in a local directory
+memory = joblib.Memory(".cache/mrmr", verbose=0)
+
+
+@memory.cache
+def _get_cached_mrmr(df, y, k_max=100, relevance='f', redundancy='c'):
+    return mrmr_classif(X=df, y=y, K=k_max, relevance=relevance, redundancy=redundancy)
+
 
 path_config = io.load_yaml("src/config/model.yaml")
 seed = path_config["SEED"]
+
 
 class PCASelector(BaseEstimator, TransformerMixin):
     """ PCA feature selection
     """
 
-
-    def __init__(self, n_components:float=0.95, random_state:int=seed):
+    def __init__(self, n_components: float = 0.95, random_state: int = seed):
         self.n_components = n_components
         self.random_state = random_state
 
     def fit(self, X, y=None):
-        self._pca = PCA(n_components=self.n_components, random_state=self.random_state)
+        self._pca = PCA(n_components=self.n_components,
+                        random_state=self.random_state)
         self._pca.fit(X)
         return self
 
@@ -33,11 +44,12 @@ class PCASelector(BaseEstimator, TransformerMixin):
     def fit_transform(self, X, y=None):
         return self.fit(X, y).transform(X)
 
+
 class HybridFeatureSelector(BaseEstimator, TransformerMixin):
     """ Union of top-k features from ANOVA, Random Forest, and MRMR
     """
 
-    def __init__(self, k:int=10, random_state:int=seed, correlation_threshold:float=0.0):
+    def __init__(self, k: int = 10, random_state: int = seed, correlation_threshold: float = 0.0):
         self.k = k
         self.random_state = random_state
         self.correlation_threshold = correlation_threshold
@@ -55,13 +67,18 @@ class HybridFeatureSelector(BaseEstimator, TransformerMixin):
         anova_cols = set(df.columns[self._anova.get_support()])
 
         # 2. Random Forest
-        rf = RandomForestClassifier(n_estimators=100, random_state=self.random_state, n_jobs=-1)
-        self._rf_sel = SelectFromModel(rf, max_features=self.k, threshold=-np.inf).fit(df, y)
+        rf = RandomForestClassifier(
+            n_estimators=100, random_state=self.random_state, n_jobs=1)
+        self._rf_sel = SelectFromModel(
+            rf, max_features=self.k, threshold=-np.inf).fit(df, y)
         rf_cols = set(df.columns[self._rf_sel.get_support()])
 
         # 3. MRMR (difference & quotient)
-        mrmr_diff = set(mrmr_classif(df, y, K=self.k))
-        mrmr_quot = set(mrmr_classif(df, y, K=self.k, relevance="f", redundancy="c"))
+        ranking_diff = _get_cached_mrmr(df, y, k_max=100)
+        mrmr_diff = set(ranking_diff[:self.k])
+        ranking_quot = _get_cached_mrmr(
+            df, y, k_max=100, relevance="f", redundancy="c")
+        mrmr_quot = set(ranking_quot[:self.k])
 
         # Union of all methods
         merged = anova_cols | rf_cols | mrmr_diff | mrmr_quot
@@ -80,7 +97,8 @@ class HybridFeatureSelector(BaseEstimator, TransformerMixin):
             merged = sorted(set(merged) - redundant_features)
 
         self.selected_features_ = sorted(merged)
-        self.selected_indices_  = [df.columns.get_loc(c) for c in self.selected_features_]
+        self.selected_indices_ = [df.columns.get_loc(
+            c) for c in self.selected_features_]
 
         print(f"Selected features: {self.selected_features_}")
         return self

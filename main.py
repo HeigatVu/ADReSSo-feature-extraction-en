@@ -1,9 +1,10 @@
 from src.utils import io
 from src import feature_extraction_pipeline
 from src import transcription_pipeline
-from src import model_feature_pipline
+from src import model_feature_pipeline
 import glob
 from pathlib import Path
+from tqdm import tqdm
 
 import pandas as pd
 
@@ -37,36 +38,59 @@ def main_traditional_approach(transcript: bool = False,
         # Define test configurations
         # Run model pipeline with selected feature selection setting
         # Without correlation_threshold
+        print(f"Models for single feature with PCA and without correlation")
         tests_hybrid_pca_without_corr = {
             "hybrid": ["compare", "egemaps", "linguistic", "praat"],
             "pca": ["compare", "egemaps", "linguistic", "praat"]
         }
-        model_feature_pipline.model_pipeline(tests_hybrid_pca_without_corr,
+        model_feature_pipline.model_pipeline_one_feature(tests_hybrid_pca_without_corr,
                                              early_fusion=early_fusion,
                                              feature_selection=feature_selection,
                                              correlation_threshold=0.0,
                                              output_csv_name="hybrid_pca_withtout_corr")
 
         # Correlation_threshold
+        print(f"Models for single feature with correlation")
         tests_hybrid_corr = {
             "hybrid": ["compare", "egemaps", "linguistic", "praat"],
         }
-        model_feature_pipline.model_pipeline(tests_hybrid_corr,
+        model_feature_pipline.model_pipeline_one_feature(tests_hybrid_corr,
                                              early_fusion=early_fusion,
                                              feature_selection=feature_selection,
                                              correlation_threshold=0.9,
                                              output_csv_name="hybrid_corr")
         # Raw feature
+        print(f"Models for single raw feature")
         tests_raw_features = {
             "": ["compare", "egemaps", "linguistic", "praat"],
         }
-        model_feature_pipline.model_pipeline(tests_raw_features,
+        model_feature_pipline.model_pipeline_one_feature(tests_raw_features,
                                              early_fusion=early_fusion,
                                              feature_selection=False,
                                              correlation_threshold=None,
                                              output_csv_name="raw")
 
         # Merged feature
+        acoustic_list = ["compare", "egemaps", "praat"]
+        print(f"Early fusion model without correlation")
+        model_feature_pipline.early_fusion_pipeline(acoustic_list=acoustic_list,
+                                                    linguistic_type="linguistic",
+                                                    strategy="hybrid",
+                                                    output_csv_name="results_merged_hybrid_withoutCorr_model")
+        model_feature_pipline.early_fusion_pipeline(acoustic_list=acoustic_list,
+                                                    linguistic_type="linguistic",
+                                                    strategy="pca",
+                                                    output_csv_name="results_merged_pca_model")
+
+        print(f"Early fusion model with correlation")
+        model_feature_pipline.early_fusion_pipeline(acoustic_list=acoustic_list,
+                                                    linguistic_type="linguistic",
+                                                    strategy="hybrid",
+                                                    correlation_threshold=0.9,
+                                                    output_csv_name="results_merged_hybrid_Corr_model")
+
+        # print(f"Late fusion model")
+        
 
 
 if __name__ == "__main__":

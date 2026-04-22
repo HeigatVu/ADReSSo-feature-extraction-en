@@ -7,6 +7,7 @@ import pandas as pd
 
 from src.traditionalApproach import tuning, modelsML, helperFn
 from src.utils import io
+from src.traditionalApproach.featureSelection import PCASelector, HybridFeatureSelector
 
 # Raw feature selection
 def evaluate_baseline_models(X_train:pd.DataFrame,
@@ -189,74 +190,3 @@ def evaluate_selection_test_set(best_estimators: dict,
         
     df_results = pd.DataFrame(results).sort_values(by="Accuracy", ascending=False)
     return df_results
-
-
-# Merged feature
-def evaluate_baseline_merged_features():
-    pass
-
-def evaluate_baseline_merged_features_test():
-    pass
-
-
-def evaluate_selection_merged_features(X_acoustic_train:pd.DataFrame,
-                                        X_ling_train:pd.DataFrame,
-                                        X_compare_train:pd.DataFrame,
-                                        y_train:pd.Series,
-                                        X_acoustic_test:pd.DataFrame,
-                                        X_ling_test:pd.DataFrame,
-                                        X_compare_test:pd.DataFrame,
-                                        strategy:str="hybrid",
-                                        threshold:float=0.0,
-                                        n_iter:int=20,
-                                        cv:int=10):
-    """ Evaluate fusion feature after selecting
-    """
-    if strategy == "pca":
-        test_case = tuning.pca_selector_hyperparameters()["pca__n_components"]
-    else:
-        test_case = tuning.hybrid_selector_hyperparameters()["feat_sel__k"]
-
-    model_config = io.load_yaml("src/config/model.yaml")
-    seed = model_config["SEED"]
-
-    scoring = helperFn.building_scoring()
-
-    sweep_rows = []
-    for case in test_case:
-        X_fused_train, _ = helperFn.fusion_features(X_acoustic_train, X_ling_train, 
-                                                        X_compare_train, strategy, case, 
-                                                        threshold=threshold)
-        X_fused_test, _ = helperFn.fusion_features(X_acoustic_test, X_ling_test, 
-                                                        X_compare_test, strategy, case, 
-                                                        threshold=threshold)
-        models = modelsML.create_models()
-        cls_params = tuning.tuning_hyperparameter_model()
-        k_cv_accs = []
-        for name, clf in models.items():
-            pipeline = Pipeline([
-                ("scaler", StandardScaler()),
-                ("clf", clf)
-            ])
-
-            random_search = RandomizedSearchCV(
-                estimator=pipeline,
-                param_distributions=cls_params[name],
-                n_iter=n_iter,
-                scoring=scoring,
-                cv=cv,
-                n_jobs=-1,
-                random_state=seed,
-                refit="accuracy",
-            )
-
-            random_search.fit(X_fused_train, y_train)
-            k_cv_accs.append(random_search.best_score_)
-            
-                
-
-    
-
-
-def evaluate_selection_merged_features_test():
-    pass

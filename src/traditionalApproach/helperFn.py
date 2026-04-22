@@ -71,11 +71,11 @@ def building_scoring() -> dict:
 # Merged feauture
 
 
-def build_selector(strategy: str, test_case: list, threshold: float = 0.0):
+def build_selector(strategy: str, test_case: list, correlation_threshold: float = 0.0):
     if strategy == "pca":
         return featureSelection.PCASelector(n_components=test_case)
     else:
-        return featureSelection.HybridFeatureSelector(threshold=threshold, k=test_case)
+        return featureSelection.HybridFeatureSelector(correlation_threshold=correlation_threshold, k=test_case)
 
 
 def scale_and_select(X_train: pd.DataFrame,

@@ -4,7 +4,8 @@ import src.traditionalApproach.featureSelection as featureSelection
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-def tuning_hyperparameter_model(use_pipeline:bool=True) -> dict:
+
+def tuning_hyperparameter_model(use_pipeline: bool = True) -> tuple:
     """ Create hyperparameter space for classifiers
     """
 
@@ -58,6 +59,7 @@ def tuning_hyperparameter_model(use_pipeline:bool=True) -> dict:
         "xgb": xgb_params,
     }
 
+
 def pca_selector_hyperparameters() -> dict:
     """ Tuning PCA hyperparameter
     """
@@ -67,6 +69,7 @@ def pca_selector_hyperparameters() -> dict:
     }
 
     return pca_params
+
 
 def hybrid_selector_hyperparameter() -> dict:
     """ Tuning hybrid method
@@ -78,16 +81,18 @@ def hybrid_selector_hyperparameter() -> dict:
 
     return hybrid_params
 
-def build_pipeline(clf:str="lr", strategy:str="hybrid", correlation_threshold:float=0.0) -> tuple:
+
+def build_pipeline(clf: str = "lr", strategy: str = "hybrid", correlation_threshold: float = 0.0) -> tuple:
     """ Build pipeline
     """
     if strategy == "pca":
         selector_step = ("pca", featureSelection.PCASelector())
         selector_grid = pca_selector_hyperparameters()
     elif strategy == "hybrid":
-        selector_step = ("feat_sel", featureSelection.HybridFeatureSelector(correlation_threshold=correlation_threshold))
+        selector_step = ("feat_sel", featureSelection.HybridFeatureSelector(
+            correlation_threshold=correlation_threshold))
         selector_grid = hybrid_selector_hyperparameter()
-    
+
     pipeline = Pipeline([
         ("scaler", StandardScaler()),
         selector_step,
