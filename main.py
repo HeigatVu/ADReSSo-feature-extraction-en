@@ -86,7 +86,7 @@ def main_traditional_approach(transcript: bool = False,
         #                                             correlation_threshold=0.9,
         #                                             output_csv_name="results_early_merged_hybrid_Corr_model")
 
-        # print(f"Late fusion model without correlation")
+        # print(f"Late fusion model without correlation, and with consistent model")
         # model_feature_pipeline.late_fusion_pipeline(acoustic_list=acoustic_list,
         #                                            linguistic_type="linguistic",
         #                                            strategy="hybrid",
@@ -102,36 +102,60 @@ def main_traditional_approach(transcript: bool = False,
         #                                            strategy="hybrid",
         #                                            correlation_threshold=0.9,
         #                                            output_csv_name="results_late_merged_hybrid_Corr_model")
-        
+        print(f"Late fusion model without correlation, and without consistent model")
+        model_feature_pipeline.late_fusion_pipeline(acoustic_list=acoustic_list,
+                                                    linguistic_type="linguistic",
+                                                    strategy="hybrid",
+                                                    consistent=False,
+                                                    output_csv_name="results_late_merged_hybrid_withoutCorr_model_withoutConsistence")
+        model_feature_pipeline.late_fusion_pipeline(acoustic_list=acoustic_list,
+                                                    linguistic_type="linguistic",
+                                                    strategy="pca",
+                                                    consistent=False,
+                                                    output_csv_name="results_late_merged_pca_model_withoutConsistence")
+
+        print(f"Late fusion model with correlation and without consistent model")
+        model_feature_pipeline.late_fusion_pipeline(acoustic_list=acoustic_list,
+                                                    linguistic_type="linguistic",
+                                                    strategy="hybrid",
+                                                    consistent=False,
+                                                    correlation_threshold=0.9,
+                                                    output_csv_name="results_late_merged_hybrid_Corr_model_withoutConsistence")
+
         # Balanced early fusion
-        print("Balanced early fusion model (intersection) without correlation")
-        model_feature_pipeline.balanced_early_fusion_pipeline(
-            acoustic_list=acoustic_list,
-            linguistic_type="linguistic",
-            strategy="intersection",
-            k=10,
-            output_csv_name="results_balanced_early_intersection_withoutCorr_model"
-        )
+        # print("Balanced early fusion model (intersection) without correlation")
+        # model_feature_pipeline.balanced_early_fusion_pipeline(
+        #     acoustic_list=acoustic_list,
+        #     linguistic_type="linguistic",
+        #     strategy="intersection",
+        #     k=10,
+        #     output_csv_name="results_balanced_early_intersection_withoutCorr_model"
+        # )
 
-        print("Balanced early fusion model (intersection) with correlation")
-        model_feature_pipeline.balanced_early_fusion_pipeline(
-            acoustic_list=acoustic_list,
-            linguistic_type="linguistic",
-            strategy="intersection",
-            k=10,
-            correlation_threshold=0.9,
-            output_csv_name="results_balanced_early_intersection_Corr_model"
-        )
+        # print("Balanced early fusion model (intersection) with correlation")
+        # model_feature_pipeline.balanced_early_fusion_pipeline(
+        #     acoustic_list=acoustic_list,
+        #     linguistic_type="linguistic",
+        #     strategy="intersection",
+        #     k=10,
+        #     correlation_threshold=0.9,
+        #     output_csv_name="results_balanced_early_intersection_Corr_model"
+        # )
 
-        print("Balanced early fusion model (PCA)")
-        model_feature_pipeline.balanced_early_fusion_pipeline(
-            acoustic_list=acoustic_list,
-            linguistic_type="linguistic",
-            strategy="pca",
-            k=10,
-            output_csv_name="results_balanced_early_pca_model"
-        )
+        # print("Balanced early fusion model (PCA)")
+        # model_feature_pipeline.balanced_early_fusion_pipeline(
+        #     acoustic_list=acoustic_list,
+        #     linguistic_type="linguistic",
+        #     strategy="pca",
+        #     k=10,
+        #     output_csv_name="results_balanced_early_pca_model"
+        # )
 
+        # print("Raw early fusion model")
+        # model_feature_pipeline.early_fusion_pipeline(acoustic_list=acoustic_list,
+        #                                              linguistic_type="linguistic",
+        #                                              feature_selection=False,
+        #                                              output_csv_name="results_early_merged_raw_model")
 
 
 if __name__ == "__main__":

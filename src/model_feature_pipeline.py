@@ -8,18 +8,19 @@ from src.traditionalApproach import helperFn
 import numpy as np
 from src.traditionalApproach.featureSelection import PCASelector, HybridFeatureSelector, IntersectionFeatureSelector
 
+FEATURE_DISPLAY_NAMES = {
+    "compare": "ComParE 2016",
+    "egemaps": "eGeMAPS",
+    "linguistic": "Linguistic Features",
+    "praat": "Praat"
+}
+
 
 def model_pipeline_one_feature(tests: dict,
                                feature_selection: bool = False,
                                correlation_threshold: float = 0.0,
-                               output_csv_name: str = "results") -> None:
-
-    FEATURE_DISPLAY_NAMES = {
-        "compare": "ComParE 2016",
-        "egemaps": "eGeMAPS",
-        "linguistic": "Linguistic Features",
-        "praat": "Praat"
-    }
+                               output_csv_name: str = "results"
+                               ) -> None:
 
     path_config = io.load_yaml("src/config/path.yaml")
     # Save result
@@ -93,16 +94,11 @@ def late_fusion_pipeline(acoustic_list: list,
                          linguistic_type: str,
                          strategy: str = "hybrid",
                          correlation_threshold: float = 0.0,
-                         output_csv_name: str = "late_fusion_results") -> None:
+                         consistent: bool = False,
+                         output_csv_name: str = "late_fusion_results"
+                         ) -> None:
     """ Late fusion pipeline: trains independent models for two sets and averages predictions.
     """
-
-    FEATURE_DISPLAY_NAMES = {
-        "compare": "ComParE 2016",
-        "egemaps": "eGeMAPS",
-        "linguistic": "Linguistic Features",
-        "praat": "Praat"
-    }
 
     path_config = io.load_yaml("src/config/path.yaml")
 
@@ -136,6 +132,8 @@ def late_fusion_pipeline(acoustic_list: list,
             f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{acoustic_type}_train.csv")
         df_acoustic_train = io.load_data(
             f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{acoustic_type}_train.pkl", df_csv=df_csv_acoustic_train)
+        assert (df_acoustic_train.index == df_ling_train.index).all(
+        ), "Row order mismatch between acoustic and linguistic training sets"
         X_train_acoustic, y_train_acoustic = df_acoustic_train.drop(
             columns=["label"]), df_acoustic_train["label"]
 
@@ -152,20 +150,45 @@ def late_fusion_pipeline(acoustic_list: list,
         df_acoustic_result, fitted_models_acoustic = evaluation.evaluate_selection_models(
             X_train_acoustic, y_train_acoustic, strategy=strategy, correlation_threshold=correlation_threshold)
 
-        # 4. Late Fusion (Average predictions)
-        for name in fitted_models_acoustic.keys():
-            if name not in fitted_models_ling:
-                continue
+        if consistent:
+            for name in fitted_models_acoustic.keys():
+                if name not in fitted_models_ling:
+                    continue
 
-            best_pipeline_acoustic = fitted_models_acoustic[name].best_estimator_
-            best_pipeline_ling = fitted_models_ling[name].best_estimator_
+                best_pipeline_acoustic = fitted_models_acoustic[name].best_estimator_
+                best_pipeline_ling = fitted_models_ling[name].best_estimator_
 
-            # Get probabilities for test set
-            y_proba_acoustic = best_pipeline_acoustic.predict_proba(X_test_acoustic)[
-                :, 1]
+                y_proba_acoustic = best_pipeline_acoustic.predict_proba(X_test_acoustic)[:, 1]
+                y_proba_ling = best_pipeline_ling.predict_proba(X_test_ling)[:, 1]
+                y_proba_fusion = (y_proba_acoustic + y_proba_ling) / 2.0
+                y_pred_fusion = (y_proba_fusion >= 0.5).astype(int)
+
+                metric_results = helperFn.calculate_metrics(
+                    y_test.values, y_pred_fusion, y_proba_fusion)
+
+                summary_rows.append({
+                    "Feature": f"{FEATURE_DISPLAY_NAMES.get(acoustic_type, acoustic_type)} + {FEATURE_DISPLAY_NAMES.get(linguistic_type, linguistic_type)}",
+                    "Strategy": strategy.upper(),
+                    "Acoustic_Model": name,
+                    "Linguistic_Model": name,
+                    "Sensitivity": round(metric_results["sensitivity"], 4),
+                    "Specificity": round(metric_results["specificity"], 4),
+                    "ROC-AUC": round(metric_results["roc-auc"], 4),
+                    "Accuracy": round(metric_results["accuracy"], 4),
+                    "Fusion_Strategy": "Average (Consistent)"
+                })
+                tqdm.write(
+                    f"Test Results ({acoustic_type} + {linguistic_type} | {strategy.upper()})\n"
+                    f"Model: {name} | Fusion: Average (Consistent)"
+                )
+        else:
+            best_ling_name = df_ling_result.iloc[0]['Model']
+            best_acoustic_name = df_acoustic_result.iloc[0]['Model']
+            best_pipeline_acoustic = fitted_models_acoustic[best_acoustic_name].best_estimator_
+            best_pipeline_ling = fitted_models_ling[best_ling_name].best_estimator_
+
+            y_proba_acoustic = best_pipeline_acoustic.predict_proba(X_test_acoustic)[:, 1]
             y_proba_ling = best_pipeline_ling.predict_proba(X_test_ling)[:, 1]
-
-            # Late fusion (average)
             y_proba_fusion = (y_proba_acoustic + y_proba_ling) / 2.0
             y_pred_fusion = (y_proba_fusion >= 0.5).astype(int)
 
@@ -175,16 +198,17 @@ def late_fusion_pipeline(acoustic_list: list,
             summary_rows.append({
                 "Feature": f"{FEATURE_DISPLAY_NAMES.get(acoustic_type, acoustic_type)} + {FEATURE_DISPLAY_NAMES.get(linguistic_type, linguistic_type)}",
                 "Strategy": strategy.upper(),
-                "Model": name,
+                "Acoustic_Model": best_acoustic_name,
+                "Linguistic_Model": best_ling_name,
                 "Sensitivity": round(metric_results["sensitivity"], 4),
                 "Specificity": round(metric_results["specificity"], 4),
                 "ROC-AUC": round(metric_results["roc-auc"], 4),
                 "Accuracy": round(metric_results["accuracy"], 4),
-                "Fusion_Strategy": "Average"
+                "Fusion_Strategy": "Average (Best-to-Best)"
             })
             tqdm.write(
-                f"Test Results ({acoustic_type} {linguistic_type} | {strategy.upper()}\n)"
-                f"Acoustic: {name} | Fusion: average"
+                f"Test Results ({acoustic_type} + {linguistic_type} | {strategy.upper()})\n"
+                f"Acoustic Best: {best_acoustic_name} | Linguistic Best: {best_ling_name} | Fusion: Average"
             )
 
     df_summary = pd.DataFrame(summary_rows).sort_values(
@@ -199,19 +223,14 @@ def late_fusion_pipeline(acoustic_list: list,
 
 def early_fusion_pipeline(acoustic_list: list,
                           linguistic_type: str,
+                          feature_selection: bool = True,
                           strategy: str = "hybrid",
                           k: int = 10,
                           correlation_threshold: float = 0.0,
-                          output_csv_name: str = "results_merged_feature_model") -> None:
+                          output_csv_name: str = "results_merged_feature_model"
+                          ) -> None:
     """ Early fusion pipeline: selectes top-k from two linguistic and acoustic features -> concatenates
     """
-
-    FEATURE_DISPLAY_NAMES = {
-        "compare": "ComParE 2016",
-        "egemaps": "eGeMAPS",
-        "linguistic": "Linguistic Features",
-        "praat": "Praat"
-    }
     summary_rows = []
 
     path_config = io.load_yaml("src/config/path.yaml")
@@ -237,6 +256,8 @@ def early_fusion_pipeline(acoustic_list: list,
             f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{acoustic_type}_train.csv")
         df_acoustic_train = io.load_data(
             f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{acoustic_type}_train.pkl", df_csv=df_csv_acoustic_train)
+        assert (df_acoustic_train.index == df_ling_train.index).all(
+        ), "Row order mismatch between acoustic and linguistic training sets"
         X_train_acoustic, y_train = df_acoustic_train.drop(
             columns=["label"]), df_acoustic_train["label"]
 
@@ -251,15 +272,22 @@ def early_fusion_pipeline(acoustic_list: list,
 
         X_train_combined = pd.concat([X_train_acoustic, X_train_ling], axis=1)
         X_test_combined = pd.concat([X_test_acoustic, X_test_ling], axis=1)
-
         X_train_combined.columns = [
             f"feat_{i}" for i in range(X_train_combined.shape[1])]
         X_test_combined.columns = X_train_combined.columns
-        df_train_results, fitted_models = evaluation.evaluate_selection_models(
-            X_train_combined, y_train, strategy=strategy, correlation_threshold=correlation_threshold)
-        test_metrics = evaluation.evaluate_selection_test_set(
-            fitted_models, X_test_combined, y_test, strategy=strategy)
-        # Save summary
+
+        if feature_selection:
+            df_train_results, fitted_models = evaluation.evaluate_selection_models(
+                X_train_combined, y_train, strategy=strategy, correlation_threshold=correlation_threshold)
+            test_metrics = evaluation.evaluate_selection_test_set(
+                fitted_models, X_test_combined, y_test, strategy=strategy)
+        else:
+            # Train and Evaluate
+            df_train_results, fitted_models = evaluation.evaluate_baseline_models(
+                X_train_combined, y_train)
+            test_metrics = evaluation.evaluate_baseline_models_test_set(
+                fitted_models, X_test_combined, y_test)
+
         best_row = test_metrics.iloc[0]
         summary_rows.append({
             "Feature": f"{FEATURE_DISPLAY_NAMES.get(acoustic_type, acoustic_type)} + "
@@ -272,10 +300,9 @@ def early_fusion_pipeline(acoustic_list: list,
             "Accuracy": best_row["Accuracy"],
         })
         tqdm.write(
-            f"Test Results ({acoustic_type} {linguistic_type} | {strategy.upper()}\n)"
+            f"Test Results ({acoustic_type} {linguistic_type} | {strategy.upper()}\n"
             f"{test_metrics.to_markdown(index=False)}"
         )
-
     df_summary = pd.DataFrame(summary_rows).sort_values(
         by="Accuracy", ascending=False)
     # Save CSV
@@ -297,12 +324,7 @@ def balanced_early_fusion_pipeline(
     """ Balanced early fusion: reduces each modality independently to k features, 
         concatenates them (2k total), and then evaluates.
     """
-    FEATURE_DISPLAY_NAMES = {
-        "compare": "ComParE 2016",
-        "egemaps": "eGeMAPS",
-        "linguistic": "Linguistic Features",
-        "praat": "Praat"
-    }
+
     summary_rows = []
 
     path_config = io.load_yaml("src/config/path.yaml")
@@ -331,6 +353,8 @@ def balanced_early_fusion_pipeline(
             f"{path_config['OUTPUT_TRADITIONAL_FEATURE_PATH']}/adresso_{acoustic_type}_train.csv")
         df_acoustic_train = io.load_data(
             f"{path_config['PKL_TRADITIONAL_PATH']}/adresso_{acoustic_type}_train.pkl", df_csv=df_csv_acoustic_train)
+        assert (df_acoustic_train.index == df_ling_train.index).all(
+        ), "Row order mismatch between acoustic and linguistic training sets"
         X_train_acoustic = df_acoustic_train.drop(columns=["label"])
 
         df_csv_acoustic_test = pd.read_csv(
